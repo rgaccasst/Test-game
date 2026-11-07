@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Society Finance Manager</title>
+<style>
+  :root {
+    --bg: #f4f6f8; --card: #ffffff; --text: #1d2733; --muted: #6b7785; --line: #e3e8ee;
+    --accent: #0f9d78; --accent-d: #0b7a5c; --danger: #d64545; --warn: #d98a10; --in: #0f9d78; --out: #e0674f;
+    --shadow: 0 1px 3px rgba(20,30,50,.08), 0 4px 14px rgba(20,30,50,.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f151b; --card: #18212a; --text: #e8edf2; --muted: #93a1b0; --line: #27333f;
+      --accent: #22c295; --accent-d: #17a07a; --danger: #f06b6b; --warn: #f0b04a; --in: #22c295; --out: #f08a73;
+      --shadow: 0 1px 3px rgba(0,0,0,.4);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-size: 15px; }
+  header.top { background: var(--card); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 20; }
+  .brandrow { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px 6px; max-width: 1100px; margin: 0 auto; }
+  .brand { font-weight: 700; font-size: 18px; }
+  .brand small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
+  nav { display: flex; gap: 4px; overflow-x: auto; padding: 0 12px 8px; max-width: 1100px; margin: 0 auto; }
+  nav button { background: none; border: 0; color: var(--muted); padding: 8px 12px; border-radius: 8px; font: inherit; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  nav button.on { background: var(--accent); color: #fff; }
+  main { max-width: 1100px; margin: 0 auto; padding: 16px; }
+  h2 { margin: 0; font-size: 20px; }
+  h3 { margin: 0 0 10px; font-size: 16px; }
+  .bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .bar .grow { flex: 1; min-width: 160px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .card { background: var(--card); border-radius: 12px; padding: 14px 16px; box-shadow: var(--shadow); }
+  .card .k { color: var(--muted); font-size: 12.5px; text-transform: uppercase; letter-spacing: .04em; }
+  .card .v { font-size: 24px; font-weight: 700; margin-top: 4px; }
+  .v.in { color: var(--in); } .v.out { color: var(--out); } .v.warn { color: var(--warn); }
+  .panel { background: var(--card); border-radius: 12px; padding: 16px; box-shadow: var(--shadow); margin-bottom: 16px; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+  .tw { overflow-x: auto; background: var(--card); border-radius: 12px; box-shadow: var(--shadow); }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; }
+  th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); background: transparent; }
+  tr:last-child td { border-bottom: 0; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .btn { background: var(--accent); color: #fff; border: 0; border-radius: 8px; padding: 9px 14px; font: inherit; font-weight: 600; cursor: pointer; }
+  .btn:hover { background: var(--accent-d); }
+  .btn.ghost { background: transparent; color: var(--text); border: 1px solid var(--line); }
+  .btn.ghost:hover { background: var(--bg); }
+  .btn.danger { background: var(--danger); }
+  .btn.sm { padding: 5px 9px; font-size: 13px; }
+  input, select, textarea { font: inherit; color: var(--text); background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; width: 100%; }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; font-weight: 600; }
+  .field { margin-bottom: 12px; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 12px; font-weight: 700; }
+  .b-paid { background: rgba(15,157,120,.15); color: var(--in); }
+  .b-part { background: rgba(217,138,16,.17); color: var(--warn); }
+  .b-unpaid { background: rgba(214,69,69,.15); color: var(--danger); }
+  .b-off { background: var(--line); color: var(--muted); }
+  .muted { color: var(--muted); }
+  .empty { text-align: center; color: var(--muted); padding: 28px 12px; }
+  .pos { color: var(--danger); font-weight: 700; } .neg { color: var(--in); font-weight: 700; }
+  .modal { position: fixed; inset: 0; background: rgba(10,15,22,.55); display: flex; align-items: flex-start; justify-content: center; padding: 20px 12px; overflow-y: auto; z-index: 50; }
+  .modal.hidden, #lock.hidden { display: none; }
+  .modal .box { background: var(--card); border-radius: 14px; padding: 20px; width: 100%; max-width: 520px; box-shadow: 0 10px 40px rgba(0,0,0,.35); }
+  .modal .box.wide { max-width: 720px; }
+  .modal h3 { font-size: 18px; }
+  .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; flex-wrap: wrap; }
+  #lock { position: fixed; inset: 0; background: var(--bg); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 20px; }
+  #lock .box { background: var(--card); padding: 26px; border-radius: 14px; box-shadow: var(--shadow); width: 100%; max-width: 340px; text-align: center; }
+  .steps { margin: 0; padding-left: 20px; line-height: 1.9; }
+  .chartwrap svg { width: 100%; height: auto; }
+  .legend { display: flex; gap: 14px; font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; }
+  .note { font-size: 13px; color: var(--muted); }
+  .receipt { border: 2px solid #222; padding: 18px; color: #111; background: #fff; font-family: Georgia, serif; }
+  .receipt h4 { margin: 0; text-align: center; font-size: 20px; }
+  .receipt .sub { text-align: center; font-size: 12px; margin-bottom: 12px; }
+  .receipt table { min-width: 0; }
+  .receipt td { border: 0; padding: 5px 0; color: #111; }
+  .receipt .sig { display: flex; justify-content: space-between; margin-top: 36px; font-size: 12px; }
+  .receipt .sig span { border-top: 1px solid #222; padding-top: 4px; min-width: 120px; text-align: center; }
+  #printArea { display: none; }
+  .billslip { background: #fff; color: #111; border: 1.5px solid #222; border-radius: 4px; padding: 10px 14px; margin: 0 0 12px; break-inside: avoid; page-break-inside: avoid; font-size: 12.5px; font-family: system-ui, Arial, sans-serif; }
+  .billslip .bh { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1.5px solid #222; padding-bottom: 5px; margin-bottom: 6px; gap: 8px; }
+  .billslip .bh b { font-size: 16px; }
+  .billslip .bh span { font-size: 11px; letter-spacing: .08em; font-weight: 700; }
+  .billslip .meta { display: flex; flex-wrap: wrap; gap: 3px 18px; margin-bottom: 6px; }
+  .billslip table { width: 100%; min-width: 0; border-collapse: collapse; }
+  .billslip td { padding: 3px 0; border-bottom: 1px dotted #999; color: #111; }
+  .billslip td.num { text-align: right; white-space: nowrap; }
+  .billslip tr.tot td { border-top: 1.5px solid #222; border-bottom: 0; font-weight: 700; font-size: 14px; padding-top: 6px; }
+  .billslip .foot { margin-top: 6px; font-size: 11.5px; white-space: pre-line; }
+  .billslip .paidtag { font-weight: 700; color: #0a7a5a; }
+  @media print {
+    body > *:not(#printArea) { display: none !important; }
+    #printArea { display: block !important; color: #111; background: #fff; padding: 10px; }
+    #printArea table { min-width: 0; }
+    #printArea th, #printArea td { color: #111; border-bottom: 1px solid #bbb; }
+    #printArea .billslip td { border-bottom: 1px dotted #999; }
+    #printArea .billslip tr.tot td { border-bottom: 0; border-top: 1.5px solid #222; }
+    html, body { background: #fff; }
+  }
+</style>
+</head>
+<body>
+
+<div id="lock" class="hidden">
+  <div class="box">
+    <h3 id="lockName">Society Finance</h3>
+    <p class="note">Enter PIN to open</p>
+    <div class="field"><input id="lockPin" type="password" inputmode="numeric" autocomplete="off" placeholder="PIN"></div>
+    <button class="btn" style="width:100%" data-act="unlock">Open</button>
+    <p id="lockErr" class="note" style="color:var(--danger)"></p>
+  </div>
+</div>
+
+<header class="top">
+  <div class="brandrow">
+    <div class="brand"><span id="brand">Society</span><small>Finance Manager</small></div>
+    <div class="note" id="today"></div>
+  </div>
+  <nav id="nav"></nav>
+</header>
+<main id="view"></main>
+<div id="modal" class="modal hidden"><div class="box" id="modalBox"></div></div>
+<div id="printArea"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ================= Data layer =================
+  var KEY = "society_finance_v1";
+  var defaults = function () {
+    return {
+      settings: { name: "My Society", cur: "Rs", maintenance: 2000, openingCash: 0, pin: "", nextReceipt: 1, billNote: "", dueDay: 10 },
+      members: [], charges: [], payments: [], expenses: []
+    };
+  };
+  var db = defaults();
+  try {
+    var raw = localStorage.getItem(KEY);
+    if (raw) { var parsed = JSON.parse(raw); db = Object.assign(defaults(), parsed); db.settings = Object.assign(defaults().settings, parsed.settings || {}); }
+  } catch (e) { db = defaults(); }
+
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch (e) { alert("Could not save data. Browser storage may be full or blocked."); } }
+
+  var CATS = ["Electricity", "Water", "Security Guard", "Cleaning", "Repair & Maintenance", "Salary", "Events", "Other"];
+  var METHODS = ["Cash", "Bank transfer", "JazzCash", "Easypaisa", "Cheque"];
+
+  // ================= Helpers =================
+  var $ = function (s, e) { return (e || document).querySelector(s); };
+  var pad = function (n) { return String(n).padStart(2, "0"); };
+  var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]; }); };
+  var uid = function () { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); };
+  var today = function () { var d = new Date(); return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); };
+  var curMonth = function () { return today().slice(0, 7); };
+  var money = function (n) { return (db.settings.cur || "Rs") + " " + (Number(n) || 0).toLocaleString("en-US", { maximumFractionDigits: 2 }); };
+  var sum = function (arr, k) { return arr.reduce(function (a, x) { return a + (Number(x[k]) || 0); }, 0); };
+  function monthLabel(m) {
+    if (m === "0000-00") return "Previous dues";
+    var d = new Date(m + "-01T00:00:00");
+    return d.toLocaleString("en", { month: "long", year: "numeric" });
+  }
+  function fmtDate(s) {
+    if (!s) return "";
+    var d = new Date(s + "T00:00:00");
+    return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  }
+  function receiptNo(n) { return "R-" + String(n).padStart(4, "0"); }
+  function phoneIntl(p) {
+    var d = String(p || "").replace(/\D/g, "");
+    if (!d) return "";
+    if (d.indexOf("00") === 0) d = d.slice(2);
+    if (d.charAt(0) === "0") d = "92" + d.slice(1);
+    return d;
+  }
+  function hashPin(pin) {
+    var h = 2166136261, s = "sf|" + pin + "|v1";
+    for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return (h >>> 0).toString(16);
+  }
+  function memberById(id) { return db.members.filter(function (m) { return m.id === id; })[0]; }
+  function memLabel(m) { return m ? m.flat + " – " + m.name : "(deleted member)"; }
+
+  // ================= Ledger computation =================
+  function compute() {
+    var by = {};
+    db.members.forEach(function (m) { by[m.id] = { charges: [], paid: 0, charged: 0, balance: 0, advance: 0, unpaidMonths: 0 }; });
+    var chargePaid = {};
+    db.members.forEach(function (m) {
+      if (Number(m.opening) > 0) by[m.id].charges.push({ id: "open_" + m.id, month: "0000-00", amount: Number(m.opening), ts: 0 });
+    });
+    db.charges.forEach(function (c) { if (by[c.memberId]) by[c.memberId].charges.push(c); });
+    db.payments.forEach(function (p) { if (by[p.memberId]) by[p.memberId].paid += Number(p.amount) || 0; });
+    Object.keys(by).forEach(function (id) {
+      var b = by[id];
+      b.charges.sort(function (x, y) { return x.month < y.month ? -1 : x.month > y.month ? 1 : (x.ts || 0) - (y.ts || 0); });
+      var rem = b.paid;
+      b.charges.forEach(function (c) {
+        var pa = Math.min(c.amount, Math.max(rem, 0));
+        chargePaid[c.id] = pa; rem -= pa; b.charged += c.amount;
+        if (pa < c.amount) b.unpaidMonths++;
+      });
+      b.balance = b.charged - b.paid;
+      b.advance = Math.max(rem, 0);
+    });
+    return { by: by, chargePaid: chargePaid };
+  }
+
+  function cashAt(beforeDate) {
+    var inn = db.payments.filter(function (p) { return !beforeDate || p.date < beforeDate; });
+    var out = db.expenses.filter(function (x) { return !beforeDate || x.date < beforeDate; });
+    return (Number(db.settings.openingCash) || 0) + sum(inn, "amount") - sum(out, "amount");
+  }
+
+  // ================= UI state =================
+  var tab = "dashboard";
+  var S = { q: "", dueMonth: curMonth(), payMonth: "", expMonth: "", expCat: "", repMonth: curMonth() };
+  var TABS = [["dashboard", "Dashboard"], ["members", "Members"], ["dues", "Monthly bills"], ["payments", "Payments"], ["expenses", "Expenses"], ["reports", "Reports"], ["settings", "Settings"]];
+
+  function modal(html, wide) {
+    $("#modalBox").className = "box" + (wide ? " wide" : "");
+    $("#modalBox").innerHTML = html;
+    $("#modal").classList.remove("hidden");
+  }
+  function closeModal() { $("#modal").classList.add("hidden"); $("#modalBox").innerHTML = ""; }
+  function printHtml(html) {
+    $("#printArea").innerHTML = html;
+    window.print();
+  }
+  function download(name, content, type) {
+    var blob = new Blob([content], { type: type || "text/plain" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  }
+  function csvCell(v) { v = String(v == null ? "" : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }
+  function toCsv(rows) { return "\ufeff" + rows.map(function (r) { return r.map(csvCell).join(","); }).join("\r\n"); }
+  function monthInput(id, val, bind) { return '<input type="month" id="' + id + '" value="' + esc(val) + '" data-bind="' + bind + '" style="width:auto">'; }
+
+  // ================= Views =================
+  var views = {};
+
+  // ---------- Dashboard ----------
+  function chartHtml() {
+    var months = [], d = new Date();
+    for (var i = 5; i >= 0; i--) { var x = new Date(d.getFullYear(), d.getMonth() - i, 1); months.push(x.getFullYear() + "-" + pad(x.getMonth() + 1)); }
+    var inn = months.map(function (m) { return sum(db.payments.filter(function (p) { return p.date.indexOf(m) === 0; }), "amount"); });
+    var out = months.map(function (m) { return sum(db.expenses.filter(function (p) { return p.date.indexOf(m) === 0; }), "amount"); });
+    var max = Math.max.apply(null, [1].concat(inn, out));
+    var svg = '<svg viewBox="0 0 600 220" role="img" aria-label="Collection and expenses for the last 6 months">';
+    svg += '<line x1="10" y1="190" x2="590" y2="190" stroke="var(--line)" />';
+    months.forEach(function (m, i) {
+      var gx = 20 + i * 96, hi = inn[i] / max * 150, ho = out[i] / max * 150;
+      svg += '<rect x="' + gx + '" y="' + (190 - hi) + '" width="34" height="' + hi + '" rx="4" fill="var(--in)"><title>' + esc(monthLabel(m)) + " collected: " + esc(money(inn[i])) + "</title></rect>";
+      svg += '<rect x="' + (gx + 38) + '" y="' + (190 - ho) + '" width="34" height="' + ho + '" rx="4" fill="var(--out)"><title>' + esc(monthLabel(m)) + " expenses: " + esc(money(out[i])) + "</title></rect>";
+      svg += '<text x="' + (gx + 36) + '" y="209" text-anchor="middle" font-size="12" fill="var(--muted)">' + new Date(m + "-01T00:00:00").toLocaleString("en", { month: "short" }) + "</text>";
+    });
+    svg += "</svg>";
+    return '<div class="chartwrap">' + svg + '<div class="legend"><span><i class="dot" style="background:var(--in)"></i>Collected</span><span><i class="dot" style="background:var(--out)"></i>Expenses</span></div></div>';
+  }
+
+  views.dashboard = function () {
+    var c = compute(), m = curMonth();
+    var collected = sum(db.payments.filter(function (p) { return p.date.indexOf(m) === 0; }), "amount");
+    var spent = sum(db.expenses.filter(function (p) { return p.date.indexOf(m) === 0; }), "amount");
+    var outstanding = 0, defaulters = 0;
+    db.members.forEach(function (mm) { if (mm.active !== false && c.by[mm.id].balance > 0) { outstanding += c.by[mm.id].balance; defaulters++; } });
+    var html = "";
+    if (!db.members.length) {
+      html += '<div class="panel"><h3>Welcome! Start in 3 steps</h3><ol class="steps"><li>Open <b>Settings</b> and enter your society name and default monthly maintenance.</li><li>Open <b>Members</b> and add every flat / house.</li><li>Open <b>Monthly bills</b> and press <b>Generate bills</b>, then record payments as they arrive.</li></ol></div>';
+    }
+    html += '<div class="cards">' +
+      '<div class="card"><div class="k">Cash in hand</div><div class="v">' + esc(money(cashAt())) + "</div></div>" +
+      '<div class="card"><div class="k">Collected this month</div><div class="v in">' + esc(money(collected)) + "</div></div>" +
+      '<div class="card"><div class="k">Expenses this month</div><div class="v out">' + esc(money(spent)) + "</div></div>" +
+      '<div class="card"><div class="k">Outstanding dues</div><div class="v warn">' + esc(money(outstanding)) + '</div><div class="note">' + defaulters + " member(s) with dues</div></div></div>";
+    var recent = db.payments.map(function (p) { return { d: p.date, t: "in", a: p.amount, x: memLabel(memberById(p.memberId)), ts: p.ts || 0 }; })
+      .concat(db.expenses.map(function (e) { return { d: e.date, t: "out", a: e.amount, x: e.category + (e.vendor ? " – " + e.vendor : ""), ts: e.ts || 0 }; }))
+      .sort(function (a, b) { return a.d < b.d ? 1 : a.d > b.d ? -1 : b.ts - a.ts; }).slice(0, 8);
+    html += '<div class="grid2"><div class="panel"><h3>Last 6 months</h3>' + chartHtml() + "</div>";
+    html += '<div class="panel"><h3>Recent activity</h3>';
+    if (!recent.length) html += '<div class="empty">No payments or expenses yet.</div>';
+    else html += '<table style="min-width:0">' + recent.map(function (r) {
+      return "<tr><td>" + esc(fmtDate(r.d)) + "</td><td>" + esc(r.x) + '</td><td class="num ' + (r.t === "in" ? "neg" : "pos") + '">' + (r.t === "in" ? "+" : "−") + esc(money(r.a)) + "</td></tr>";
+    }).join("") + "</table>";
+    html += "</div></div>";
+    return html;
+  };
+
+  // ---------- Members ----------
+  function membersTable() {
+    var c = compute(), q = S.q.trim().toLowerCase();
+    var list = db.members.filter(function (m) {
+      return !q || (m.flat + " " + m.name + " " + (m.phone || "")).toLowerCase().indexOf(q) !== -1;
+    }).sort(function (a, b) { return a.flat.localeCompare(b.flat, undefined, { numeric: true }); });
+    if (!list.length) return '<div class="empty">' + (db.members.length ? "No match found." : "No members yet. Press “+ Add member”.") + "</div>";
+    var rows = list.map(function (m) {
+      var b = c.by[m.id], bal = b.balance;
+      var balHtml = bal > 0 ? '<span class="pos">' + esc(money(bal)) + " due</span>" : bal < 0 ? '<span class="neg">' + esc(money(-bal)) + " advance</span>" : '<span class="muted">Clear</span>';
+      var wa = bal > 0 && phoneIntl(m.phone) ? '<button class="btn ghost sm" data-act="remind" data-id="' + m.id + '">WhatsApp</button> ' : "";
+      return "<tr><td><b>" + esc(m.flat) + "</b></td><td>" + esc(m.name) + (m.active === false ? ' <span class="badge b-off">Inactive</span>' : "") + '</td><td>' + esc(m.phone || "") + '</td><td class="num">' + esc(money(m.monthly || db.settings.maintenance)) + '</td><td class="num">' + balHtml + "</td><td>" +
+        '<button class="btn sm" data-act="receive" data-id="' + m.id + '">Receive</button> ' + wa +
+        '<button class="btn ghost sm" data-act="statement" data-id="' + m.id + '">Statement</button> ' +
+        '<button class="btn ghost sm" data-act="editMember" data-id="' + m.id + '">Edit</button></td></tr>';
+    }).join("");
+    return "<table><thead><tr><th>Flat</th><th>Name</th><th>Phone</th><th class=\"num\">Monthly</th><th class=\"num\">Balance</th><th></th></tr></thead><tbody>" + rows + "</tbody></table>";
+  }
+  views.members = function () {
+    return '<div class="bar"><h2>Members</h2><input class="grow" id="q" placeholder="Search flat, name or phone" value="' + esc(S.q) + '" data-search="1"><button class="btn" data-act="addMember">+ Add member</button></div><div class="tw" id="tbl">' + membersTable() + "</div>";
+  };
+
+  // ---------- Monthly bills ----------
+  views.dues = function () {
+    var c = compute(), m = S.dueMonth;
+    var list = db.charges.filter(function (x) { return x.month === m; }).sort(function (a, b) {
+      var ma = memberById(a.memberId), mb = memberById(b.memberId);
+      return (ma ? ma.flat : "").localeCompare(mb ? mb.flat : "", undefined, { numeric: true });
+    });
+    var total = sum(list, "amount"), paid = list.reduce(function (a, x) { return a + (c.chargePaid[x.id] || 0); }, 0);
+    var html = '<div class="bar"><h2>Monthly bills</h2><div class="row">' + monthInput("dueMonth", m, "dueMonth") +
+      '<button class="btn" data-act="genBills">Generate bills</button><button class="btn ghost" data-act="specialCharge">+ Special charge</button></div></div>';
+    html += '<div class="panel"><h3>Bills to send to homes</h3><p class="note">Prints one bill slip per house for <b>' + esc(monthLabel(m)) + '</b>, sorted by street so you can deliver them in order. Choose “Save as PDF” in the print window to share on WhatsApp.</p><div class="row"><button class="btn" data-act="printBills" data-id="all">Print all bills</button><button class="btn ghost" data-act="printBills" data-id="unpaid">Print only members who owe</button></div></div>';
+    html += '<div class="cards"><div class="card"><div class="k">Billed for ' + esc(monthLabel(m)) + '</div><div class="v">' + esc(money(total)) + '</div></div><div class="card"><div class="k">Settled so far</div><div class="v in">' + esc(money(paid)) + '</div></div><div class="card"><div class="k">Still pending</div><div class="v warn">' + esc(money(total - paid)) + "</div></div></div>";
+    if (!list.length) return html + '<div class="panel empty">No bills for this month yet. Press “Generate bills” to bill every active member.</div>';
+    html += '<div class="tw"><table><thead><tr><th>Flat</th><th>Name</th><th>Charge</th><th class="num">Amount</th><th class="num">Paid</th><th>Status</th><th></th></tr></thead><tbody>' +
+      list.map(function (x) {
+        var mm = memberById(x.memberId), pa = c.chargePaid[x.id] || 0;
+        var st = pa >= x.amount ? '<span class="badge b-paid">Paid</span>' : pa > 0 ? '<span class="badge b-part">Partial</span>' : '<span class="badge b-unpaid">Unpaid</span>';
+        return "<tr><td><b>" + esc(mm ? mm.flat : "?") + "</b></td><td>" + esc(mm ? mm.name : "") + "</td><td>" + esc(x.title || "Maintenance") + '</td><td class="num">' + esc(money(x.amount)) + '</td><td class="num">' + esc(money(pa)) + "</td><td>" + st + '</td><td><button class="btn sm" data-act="billOne" data-id="' + x.memberId + '">Bill</button> ' + (mm && phoneIntl(mm.phone) ? '<button class="btn ghost sm" data-act="waBill" data-id="' + x.memberId + '">WhatsApp</button> ' : "") + '<button class="btn ghost sm" data-act="delCharge" data-id="' + x.id + '">Delete</button></td></tr>';
+      }).join("") + "</tbody></table></div>";
+    html += '<p class="note">Payments are applied to the oldest unpaid bill first, so you only record one payment per receipt.</p>';
+    return html;
+  };
+
+  // ---------- Payments ----------
+  views.payments = function () {
+    var list = db.payments.filter(function (p) { return !S.payMonth || p.date.indexOf(S.payMonth) === 0; })
+      .sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : (b.ts || 0) - (a.ts || 0); });
+    var html = '<div class="bar"><h2>Payments received</h2><div class="row">' + monthInput("payMonth", S.payMonth, "payMonth") +
+      '<button class="btn ghost sm" data-act="clearPayFilter">All</button><button class="btn" data-act="receive" data-id="">+ Record payment</button></div></div>';
+    html += '<div class="cards"><div class="card"><div class="k">' + (S.payMonth ? esc(monthLabel(S.payMonth)) : "All time") + ' total</div><div class="v in">' + esc(money(sum(list, "amount"))) + "</div></div></div>";
+    if (!list.length) return html + '<div class="panel empty">No payments recorded.</div>';
+    return html + '<div class="tw"><table><thead><tr><th>Receipt</th><th>Date</th><th>Member</th><th class="num">Amount</th><th>Method</th><th>Note</th><th></th></tr></thead><tbody>' +
+      list.map(function (p) {
+        return "<tr><td>" + esc(p.receipt || "") + "</td><td>" + esc(fmtDate(p.date)) + "</td><td>" + esc(memLabel(memberById(p.memberId))) + '</td><td class="num">' + esc(money(p.amount)) + "</td><td>" + esc(p.method || "") + "</td><td>" + esc(p.note || "") +
+          '</td><td><button class="btn ghost sm" data-act="showReceipt" data-id="' + p.id + '">Receipt</button> <button class="btn ghost sm" data-act="delPayment" data-id="' + p.id + '">Delete</button></td></tr>';
+      }).join("") + "</tbody></table></div>";
+  };
+
+  // ---------- Expenses ----------
+  views.expenses = function () {
+    var list = db.expenses.filter(function (e) { return (!S.expMonth || e.date.indexOf(S.expMonth) === 0) && (!S.expCat || e.category === S.expCat); })
+      .sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : (b.ts || 0) - (a.ts || 0); });
+    var html = '<div class="bar"><h2>Expenses</h2><div class="row">' + monthInput("expMonth", S.expMonth, "expMonth") +
+      '<select data-bind="expCat" style="width:auto"><option value="">All categories</option>' + CATS.map(function (c) { return '<option value="' + esc(c) + '"' + (S.expCat === c ? " selected" : "") + ">" + esc(c) + "</option>"; }).join("") + "</select>" +
+      '<button class="btn ghost sm" data-act="clearExpFilter">Reset</button><button class="btn" data-act="addExpense">+ Add expense</button></div></div>';
+    html += '<div class="cards"><div class="card"><div class="k">Total shown</div><div class="v out">' + esc(money(sum(list, "amount"))) + "</div></div></div>";
+    if (!list.length) return html + '<div class="panel empty">No expenses recorded.</div>';
+    return html + '<div class="tw"><table><thead><tr><th>Date</th><th>Category</th><th>Paid to</th><th>Note</th><th class="num">Amount</th><th></th></tr></thead><tbody>' +
+      list.map(function (e) {
+        return "<tr><td>" + esc(fmtDate(e.date)) + "</td><td>" + esc(e.category) + "</td><td>" + esc(e.vendor || "") + "</td><td>" + esc(e.note || "") + '</td><td class="num">' + esc(money(e.amount)) + '</td><td><button class="btn ghost sm" data-act="delExpense" data-id="' + e.id + '">Delete</button></td></tr>';
+      }).join("") + "</tbody></table></div>";
+  };
+
+  // ---------- Reports ----------
+  function monthReport(m) {
+    var start = m + "-01";
+    var opening = cashAt(start);
+    var pays = db.payments.filter(function (p) { return p.date.indexOf(m) === 0; });
+    var exps = db.expenses.filter(function (p) { return p.date.indexOf(m) === 0; });
+    var byCat = {};
+    exps.forEach(function (e) { byCat[e.category] = (byCat[e.category] || 0) + Number(e.amount); });
+    var billed = sum(db.charges.filter(function (c) { return c.month === m; }), "amount");
+    return { opening: opening, collected: sum(pays, "amount"), spent: sum(exps, "amount"), byCat: byCat, billed: billed, closing: opening + sum(pays, "amount") - sum(exps, "amount"), pays: pays, exps: exps };
+  }
+  function defaultersList() {
+    var c = compute();
+    return db.members.filter(function (m) { return c.by[m.id].balance > 0; })
+      .map(function (m) { return { m: m, bal: c.by[m.id].balance, months: c.by[m.id].unpaidMonths }; })
+      .sort(function (a, b) { return b.bal - a.bal; });
+  }
+  function reportInner(m) {
+    var r = monthReport(m), def = defaultersList();
+    var cats = Object.keys(r.byCat).sort(function (a, b) { return r.byCat[b] - r.byCat[a]; });
+    var h = "<table style=\"min-width:0\"><tbody>" +
+      "<tr><td>Opening cash balance</td><td class=\"num\">" + esc(money(r.opening)) + "</td></tr>" +
+      "<tr><td>Billed this month</td><td class=\"num\">" + esc(money(r.billed)) + "</td></tr>" +
+      "<tr><td>Collected this month</td><td class=\"num neg\">" + esc(money(r.collected)) + "</td></tr>" +
+      "<tr><td>Expenses this month</td><td class=\"num pos\">" + esc(money(r.spent)) + "</td></tr>" +
+      "<tr><td><b>Closing cash balance</b></td><td class=\"num\"><b>" + esc(money(r.closing)) + "</b></td></tr></tbody></table>";
+    h += "<h3 style=\"margin-top:18px\">Expenses by category</h3>";
+    h += cats.length ? "<table style=\"min-width:0\"><tbody>" + cats.map(function (k) { return "<tr><td>" + esc(k) + '</td><td class="num">' + esc(money(r.byCat[k])) + "</td></tr>"; }).join("") + "</tbody></table>" : '<p class="note">No expenses this month.</p>';
+    h += "<h3 style=\"margin-top:18px\">Members with outstanding dues (" + def.length + ")</h3>";
+    h += def.length ? "<table style=\"min-width:0\"><thead><tr><th>Flat</th><th>Name</th><th class=\"num\">Months</th><th class=\"num\">Due</th></tr></thead><tbody>" + def.map(function (d) { return "<tr><td>" + esc(d.m.flat) + "</td><td>" + esc(d.m.name) + '</td><td class="num">' + d.months + '</td><td class="num">' + esc(money(d.bal)) + "</td></tr>"; }).join("") + "<tr><td colspan=\"3\"><b>Total outstanding</b></td><td class=\"num\"><b>" + esc(money(sum(def.map(function (d) { return { b: d.bal }; }), "b"))) + "</b></td></tr></tbody></table>" : '<p class="note">Nobody owes anything.</p>';
+    return h;
+  }
+  views.reports = function () {
+    var m = S.repMonth;
+    return '<div class="bar"><h2>Reports</h2><div class="row">' + monthInput("repMonth", m, "repMonth") + '<button class="btn" data-act="printReport">Print report</button></div></div>' +
+      '<div class="panel"><h3>' + esc(db.settings.name) + " — " + esc(monthLabel(m)) + "</h3>" + reportInner(m) + "</div>" +
+      '<div class="panel"><h3>Export to Excel (CSV)</h3><div class="row"><button class="btn ghost" data-act="csv" data-id="members">Members &amp; balances</button><button class="btn ghost" data-act="csv" data-id="payments">All payments</button><button class="btn ghost" data-act="csv" data-id="expenses">All expenses</button><button class="btn ghost" data-act="csv" data-id="defaulters">Defaulters</button></div></div>';
+  };
+
+  // ---------- Settings ----------
+  views.settings = function () {
+    var s = db.settings;
+    return '<div class="bar"><h2>Settings</h2></div><div class="grid2">' +
+      '<div class="panel"><h3>Society details</h3><form data-form="settings">' +
+      '<div class="field"><label>Society name</label><input name="name" value="' + esc(s.name) + '" required></div>' +
+      '<div class="two"><div class="field"><label>Currency label</label><input name="cur" value="' + esc(s.cur) + '" required></div>' +
+      '<div class="field"><label>Default monthly maintenance</label><input name="maintenance" type="number" min="0" step="any" value="' + esc(s.maintenance) + '" required></div></div>' +
+      '<div class="field"><label>Opening cash balance (money already in hand when you start)</label><input name="openingCash" type="number" step="any" value="' + esc(s.openingCash) + '" required></div>' +
+      '<div class="two"><div class="field"><label>Bill due day of month (1–28)</label><input name="dueDay" type="number" min="1" max="28" value="' + esc(s.dueDay || 10) + '"></div><div></div></div>' +
+      '<div class="field"><label>Payment instructions printed on every bill (bank account, JazzCash, office timing…)</label><textarea name="billNote" rows="3" placeholder="e.g. Bank: XYZ Bank, A/C Title: ..., A/C No: ...">' + esc(s.billNote || "") + '</textarea></div>' +
+      '<button class="btn" type="submit">Save settings</button></form></div>' +
+      '<div class="panel"><h3>App lock (PIN)</h3><p class="note">Asks for a PIN each time the app opens. This is a casual lock to keep curious people out; it does not encrypt the data stored in this browser.</p>' +
+      '<form data-form="pin"><div class="field"><label>' + (s.pin ? "Change PIN (4–8 digits)" : "Set PIN (4–8 digits)") + '</label><input name="pin" type="password" inputmode="numeric" pattern="[0-9]{4,8}" placeholder="e.g. 1234" required></div>' +
+      '<div class="row"><button class="btn" type="submit">' + (s.pin ? "Change PIN" : "Set PIN") + "</button>" + (s.pin ? '<button class="btn ghost" type="button" data-act="removePin">Remove PIN</button>' : "") + "</div></form></div>" +
+      '<div class="panel"><h3>Backup &amp; restore</h3><p class="note"><b>Important:</b> your data lives only in this browser on this device. Download a backup regularly and keep it safe (for example on WhatsApp to yourself or Google Drive). To use the app on another phone or computer, restore the backup file there.</p>' +
+      '<div class="row"><button class="btn" data-act="backup">Download backup</button><label class="btn ghost" style="margin:0;cursor:pointer;color:var(--text)">Restore backup<input type="file" accept=".json,application/json" id="restoreFile" style="display:none"></label></div></div>' +
+      '<div class="panel"><h3>Danger zone</h3><p class="note">Deletes every member, bill, payment and expense from this browser.</p><button class="btn danger" data-act="resetAll">Erase all data</button></div></div>';
+  };
+
+  // ================= Render =================
+  function render() {
+    $("#brand").textContent = db.settings.name;
+    $("#today").textContent = fmtDate(today());
+    $("#nav").innerHTML = TABS.map(function (t) { return '<button data-act="tab" data-id="' + t[0] + '" class="' + (tab === t[0] ? "on" : "") + '">' + t[1] + "</button>"; }).join("");
+    $("#view").innerHTML = views[tab]();
+    document.title = db.settings.name + " – Finance";
+  }
+
+  // ================= Modals / forms =================
+  function memberForm(m) {
+    m = m || {};
+    return '<h3>' + (m.id ? "Edit member" : "Add member") + '</h3><form data-form="member"><input type="hidden" name="id" value="' + esc(m.id || "") + '">' +
+      '<div class="two"><div class="field"><label>Flat / house no.</label><input name="flat" value="' + esc(m.flat || "") + '" required></div>' +
+      '<div class="field"><label>Phone (for WhatsApp)</label><input name="phone" type="tel" value="' + esc(m.phone || "") + '" placeholder="03xx xxxxxxx"></div></div>' +
+      '<div class="field"><label>Resident name</label><input name="name" value="' + esc(m.name || "") + '" required></div>' +
+      '<div class="two"><div class="field"><label>Monthly maintenance</label><input name="monthly" type="number" min="0" step="any" value="' + esc(m.monthly != null ? m.monthly : db.settings.maintenance) + '" required></div>' +
+      '<div class="field"><label>Previous dues (before using this app)</label><input name="opening" type="number" min="0" step="any" value="' + esc(m.opening || 0) + '"></div></div>' +
+      (m.id ? '<div class="field"><label><input type="checkbox" name="inactive" value="1" style="width:auto" ' + (m.active === false ? "checked" : "") + "> Inactive (moved out; skipped when generating bills)</label></div>" : "") +
+      '<div class="actions">' + (m.id ? '<button class="btn danger" type="button" data-act="delMember" data-id="' + m.id + '" style="margin-right:auto">Delete</button>' : "") +
+      '<button class="btn ghost" type="button" data-act="closeModal">Cancel</button><button class="btn" type="submit">Save</button></div></form>';
+  }
+
+  function receiptHtml(p) {
+    var m = memberById(p.memberId), c = compute(), bal = m ? c.by[m.id].balance : 0;
+    return '<div class="receipt"><h4>' + esc(db.settings.name) + '</h4><div class="sub">PAYMENT RECEIPT</div>' +
+      "<table style=\"width:100%\"><tbody>" +
+      "<tr><td>Receipt no.</td><td style=\"text-align:right\"><b>" + esc(p.receipt || "") + "</b></td></tr>" +
+      "<tr><td>Date</td><td style=\"text-align:right\">" + esc(fmtDate(p.date)) + "</td></tr>" +
+      "<tr><td>Received from</td><td style=\"text-align:right\">" + esc(m ? m.name : "") + "</td></tr>" +
+      "<tr><td>Flat / house</td><td style=\"text-align:right\">" + esc(m ? m.flat : "") + "</td></tr>" +
+      "<tr><td>Payment method</td><td style=\"text-align:right\">" + esc(p.method || "") + "</td></tr>" +
+      (p.note ? "<tr><td>Note</td><td style=\"text-align:right\">" + esc(p.note) + "</td></tr>" : "") +
+      "<tr><td><b>Amount received</b></td><td style=\"text-align:right;font-size:18px\"><b>" + esc(money(p.amount)) + "</b></td></tr>" +
+      "<tr><td>Balance after this payment</td><td style=\"text-align:right\">" + (bal > 0 ? esc(money(bal)) + " due" : bal < 0 ? esc(money(-bal)) + " advance" : "Nil") + "</td></tr>" +
+      '</tbody></table><div class="sig"><span>Resident</span><span>Cashier</span></div></div>';
+  }
+  function showReceipt(p) {
+    modal(receiptHtml(p) + '<div class="actions"><button class="btn ghost" data-act="closeModal">Close</button><button class="btn" data-act="printReceipt" data-id="' + p.id + '">Print / Save as PDF</button></div>');
+  }
+
+  function paymentForm(memberId) {
+    var c = compute();
+    var active = db.members.filter(function (m) { return m.active !== false || m.id === memberId; })
+      .sort(function (a, b) { return a.flat.localeCompare(b.flat, undefined, { numeric: true }); });
+    var sel = memberId ? memberById(memberId) : null;
+    var def = sel ? Math.max(c.by[sel.id].balance, 0) : "";
+    return '<h3>Record payment</h3><form data-form="payment">' +
+      '<div class="field"><label>Member</label><select name="memberId" id="payMember" required><option value="">Select…</option>' +
+      active.map(function (m) { var b = c.by[m.id].balance; return '<option value="' + m.id + '" data-due="' + Math.max(b, 0) + '"' + (m.id === memberId ? " selected" : "") + ">" + esc(m.flat + " – " + m.name) + (b > 0 ? " (due " + b + ")" : "") + "</option>"; }).join("") + "</select></div>" +
+      '<div class="two"><div class="field"><label>Amount</label><input name="amount" id="payAmount" type="number" min="0.01" step="any" value="' + esc(def) + '" required></div>' +
+      '<div class="field"><label>Date</label><input name="date" type="date" value="' + today() + '" required></div></div>' +
+      '<div class="two"><div class="field"><label>Method</label><select name="method">' + METHODS.map(function (x) { return "<option>" + x + "</option>"; }).join("") + "</select></div>" +
+      '<div class="field"><label>Note (optional)</label><input name="note" placeholder="e.g. June maintenance"></div></div>' +
+      '<div class="actions"><button class="btn ghost" type="button" data-act="closeModal">Cancel</button><button class="btn" type="submit">Save &amp; show receipt</button></div></form>';
+  }
+
+  function statementHtml(m) {
+    var lines = [];
+    if (Number(m.opening) > 0) lines.push({ d: "0000-00-00", desc: "Previous dues", debit: Number(m.opening), credit: 0, ts: 0 });
+    db.charges.filter(function (c) { return c.memberId === m.id; }).forEach(function (c) { lines.push({ d: c.month + "-01", desc: (c.title || "Maintenance") + " – " + monthLabel(c.month), debit: Number(c.amount), credit: 0, ts: c.ts || 0 }); });
+    db.payments.filter(function (p) { return p.memberId === m.id; }).forEach(function (p) { lines.push({ d: p.date, desc: "Payment " + (p.receipt || "") + (p.method ? " (" + p.method + ")" : ""), debit: 0, credit: Number(p.amount), ts: p.ts || 0 }); });
+    lines.sort(function (a, b) { return a.d < b.d ? -1 : a.d > b.d ? 1 : a.ts - b.ts; });
+    var bal = 0;
+    var rows = lines.map(function (l) {
+      bal += l.debit - l.credit;
+      return "<tr><td>" + esc(l.d === "0000-00-00" ? "" : fmtDate(l.d)) + "</td><td>" + esc(l.desc) + '</td><td class="num">' + (l.debit ? esc(money(l.debit)) : "") + '</td><td class="num">' + (l.credit ? esc(money(l.credit)) : "") + '</td><td class="num">' + esc(money(bal)) + "</td></tr>";
+    }).join("");
+    return "<h3>" + esc(db.settings.name) + " — Account statement</h3><p>" + esc(m.name) + " (Flat " + esc(m.flat) + ")<br><span class=\"note\">Printed " + esc(fmtDate(today())) + "</span></p>" +
+      (lines.length ? '<div class="tw" style="box-shadow:none"><table><thead><tr><th>Date</th><th>Details</th><th class="num">Billed</th><th class="num">Paid</th><th class="num">Balance</th></tr></thead><tbody>' + rows + "</tbody></table></div>" : '<p class="note">No entries yet.</p>') +
+      "<p><b>" + (bal > 0 ? "Amount due: " + esc(money(bal)) : bal < 0 ? "Advance balance: " + esc(money(-bal)) : "Account is clear") + "</b></p>";
+  }
+
+  // ================= Bills (to send to homes) =================
+  function monthEnd(month) {
+    var d = new Date(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0);
+    return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+  }
+  function billData(m, month) {
+    var start = month + "-01", end = monthEnd(month);
+    var cur = db.charges.filter(function (c) { return c.memberId === m.id && c.month === month; });
+    var prevCharges = (Number(m.opening) || 0) + sum(db.charges.filter(function (c) { return c.memberId === m.id && c.month < month; }), "amount");
+    var prevPaid = sum(db.payments.filter(function (p) { return p.memberId === m.id && p.date < start; }), "amount");
+    var paid = sum(db.payments.filter(function (p) { return p.memberId === m.id && p.date >= start && p.date <= end; }), "amount");
+    var arrears = prevCharges - prevPaid, billed = sum(cur, "amount");
+    return { cur: cur, arrears: arrears, billed: billed, paid: paid, total: arrears + billed - paid };
+  }
+  function billNo(m, month) { return month.replace("-", "") + "-" + (m.uid || String(db.members.indexOf(m) + 1).padStart(3, "0")); }
+  function dueDate(month) { return month + "-" + pad(Math.min(28, Math.max(1, Number(db.settings.dueDay) || 10))); }
+  function billSlip(m, month) {
+    var b = billData(m, month), rows = "";
+    function row(label, amt, neg) { return "<tr><td>" + esc(label) + '</td><td class="num">' + (neg ? "− " : "") + esc(money(Math.abs(amt))) + "</td></tr>"; }
+    if (Math.abs(b.arrears) > 0.004) rows += row(b.arrears > 0 ? "Previous dues (arrears)" : "Advance credit brought forward", b.arrears, b.arrears < 0);
+    b.cur.forEach(function (c) { rows += row((c.title || "Maintenance") + " – " + monthLabel(month), c.amount); });
+    if (b.paid > 0) rows += row("Payments received in " + monthLabel(month), b.paid, true);
+    var totalRow = b.total > 0.004
+      ? '<tr class="tot"><td>TOTAL PAYABLE</td><td class="num">' + esc(money(b.total)) + "</td></tr>"
+      : '<tr class="tot"><td>' + (b.total < -0.004 ? "ADVANCE BALANCE (nothing to pay)" : "NO PAYMENT DUE") + '</td><td class="num"><span class="paidtag">' + (b.total < -0.004 ? esc(money(-b.total)) : "Paid, thank you") + "</span></td></tr>";
+    var where = [m.street ? "Street " + m.street : "", m.block ? "Block " + m.block : ""].filter(Boolean).join(" · ");
+    return '<div class="billslip"><div class="bh"><b>' + esc(db.settings.name) + "</b><span>MAINTENANCE BILL</span></div>" +
+      '<div class="meta"><span><b>Bill no:</b> ' + esc(billNo(m, month)) + "</span><span><b>Month:</b> " + esc(monthLabel(month)) + "</span><span><b>Due date:</b> " + esc(fmtDate(dueDate(month))) + "</span></div>" +
+      '<div class="meta"><span><b>Owner / resident:</b> ' + esc(m.name) + "</span><span><b>Plot:</b> " + esc(m.flat) + "</span>" + (where ? "<span>" + esc(where) + "</span>" : "") + "</div>" +
+      "<table><tbody>" + rows + totalRow + "</tbody></table>" +
+      (b.total > 0.004 ? '<div class="foot">Please pay on or before ' + esc(fmtDate(dueDate(month))) + ". " + esc(db.settings.billNote || "") + "</div>" : (db.settings.billNote ? '<div class="foot">' + esc(db.settings.billNote) + "</div>" : "")) +
+      "</div>";
+  }
+  function billMembers(month, mode) {
+    return db.members.map(function (m) { return { m: m, b: billData(m, month) }; })
+      .filter(function (x) {
+        if (x.m.active === false && !(x.b.billed > 0)) return false;
+        if (!(x.b.billed > 0 || x.b.arrears > 0.004)) return false;
+        return mode === "unpaid" ? x.b.total > 0.004 : true;
+      })
+      .sort(function (a, b) {
+        var sa = Number(a.m.street) || 0, sb = Number(b.m.street) || 0;
+        return sa - sb || a.m.flat.localeCompare(b.m.flat, undefined, { numeric: true });
+      });
+  }
+  function billWhatsApp(m, month) {
+    var b = billData(m, month);
+    var msg = "Assalam o Alaikum " + m.name + ",\n" + db.settings.name + " – maintenance bill for " + monthLabel(month) + "\nPlot: " + m.flat + "\n" +
+      (b.arrears > 0.004 ? "Previous dues: " + money(b.arrears) + "\n" : "") +
+      "This month: " + money(b.billed) + "\n" +
+      (b.paid > 0 ? "Payments received: " + money(b.paid) + "\n" : "") +
+      "Total payable: " + money(Math.max(b.total, 0)) + "\nDue date: " + fmtDate(dueDate(month)) +
+      (db.settings.billNote ? "\n" + db.settings.billNote : "") + "\nJazakAllah.";
+    window.open("https://wa.me/" + phoneIntl(m.phone) + "?text=" + encodeURIComponent(msg), "_blank", "noopener");
+  }
+
+  // ================= Actions =================
+  var acts = {
+    tab: function (d) { tab = d.id; render(); window.scrollTo(0, 0); },
+    closeModal: closeModal,
+    printBills: function (d) {
+      var list = billMembers(S.dueMonth, d.id);
+      if (!list.length) { alert(d.id === "unpaid" ? "Nobody owes anything for " + monthLabel(S.dueMonth) + "." : "No bills for " + monthLabel(S.dueMonth) + " yet. Press “Generate bills” first."); return; }
+      printHtml(list.map(function (x) { return billSlip(x.m, S.dueMonth); }).join(""));
+    },
+    billOne: function (d) {
+      var m = memberById(d.id); if (!m) return;
+      modal(billSlip(m, S.dueMonth) + '<div class="actions"><button class="btn ghost" data-act="closeModal">Close</button>' + (phoneIntl(m.phone) ? '<button class="btn ghost" data-act="waBill" data-id="' + m.id + '">Send on WhatsApp</button>' : "") + '<button class="btn" data-act="printBillOne" data-id="' + m.id + '">Print / Save as PDF</button></div>');
+    },
+    printBillOne: function (d) { var m = memberById(d.id); if (m) printHtml(billSlip(m, S.dueMonth)); },
+    waBill: function (d) { var m = memberById(d.id); if (m) billWhatsApp(m, S.dueMonth); },
+    addMember: function () { modal(memberForm()); },
+    editMember: function (d) { modal(memberForm(memberById(d.id))); },
+    delMember: function (d) {
+      var has = db.charges.some(function (c) { return c.memberId === d.id; }) || db.payments.some(function (p) { return p.memberId === d.id; });
+      if (has) { alert("This member has bills or payments recorded, so they cannot be deleted. Mark them Inactive instead."); return; }
+      if (!confirm("Delete this member?")) return;
+      db.members = db.members.filter(function (m) { return m.id !== d.id; }); save(); closeModal(); render();
+    },
+    receive: function (d) { modal(paymentForm(d.id || "")); },
+    statement: function (d) {
+      var m = memberById(d.id);
+      modal(statementHtml(m) + '<div class="actions"><button class="btn ghost" data-act="closeModal">Close</button><button class="btn" data-act="printStatement" data-id="' + m.id + '">Print / Save as PDF</button></div>', true);
+    },
+    printStatement: function (d) { printHtml(statementHtml(memberById(d.id))); },
+    remind: function (d) {
+      var m = memberById(d.id), c = compute(), bal = c.by[m.id].balance;
+      var msg = "Assalam o Alaikum " + m.name + ",\nThis is a reminder from " + db.settings.name + ". Your maintenance dues for Flat " + m.flat + " are " + money(bal) + ". Kindly pay at your earliest convenience. Thank you.";
+      window.open("https://wa.me/" + phoneIntl(m.phone) + "?text=" + encodeURIComponent(msg), "_blank", "noopener");
+    },
+    genBills: function () {
+      var m = S.dueMonth;
+      if (!m) { alert("Choose a month first."); return; }
+      var made = 0;
+      db.members.forEach(function (mm) {
+        if (mm.active === false) return;
+        var exists = db.charges.some(function (c) { return c.memberId === mm.id && c.month === m && (c.title || "Maintenance") === "Maintenance"; });
+        if (exists) return;
+        db.charges.push({ id: uid(), memberId: mm.id, month: m, title: "Maintenance", amount: Number(mm.monthly != null && mm.monthly !== "" ? mm.monthly : db.settings.maintenance), ts: Date.now() });
+        made++;
+      });
+      save(); render();
+      alert(made ? made + " bill(s) created for " + monthLabel(m) + "." : "All active members already have a bill for " + monthLabel(m) + ".");
+    },
+    specialCharge: function () {
+      var opts = db.members.filter(function (m) { return m.active !== false; }).map(function (m) { return '<option value="' + m.id + '">' + esc(m.flat + " – " + m.name) + "</option>"; }).join("");
+      modal('<h3>Special charge</h3><p class="note">Use for one-time items such as a repair fund, water tanker or event contribution.</p><form data-form="special">' +
+        '<div class="field"><label>Title</label><input name="title" placeholder="e.g. Pump repair fund" required></div>' +
+        '<div class="two"><div class="field"><label>Amount</label><input name="amount" type="number" min="0.01" step="any" required></div><div class="field"><label>Month</label><input name="month" type="month" value="' + esc(S.dueMonth) + '" required></div></div>' +
+        '<div class="field"><label>Apply to</label><select name="target"><option value="all">All active members</option>' + opts + "</select></div>" +
+        '<div class="actions"><button class="btn ghost" type="button" data-act="closeModal">Cancel</button><button class="btn" type="submit">Add charge</button></div></form>');
+    },
+    delCharge: function (d) { if (!confirm("Delete this bill?")) return; db.charges = db.charges.filter(function (c) { return c.id !== d.id; }); save(); render(); },
+    showReceipt: function (d) { var p = db.payments.filter(function (x) { return x.id === d.id; })[0]; if (p) showReceipt(p); },
+    printReceipt: function (d) { var p = db.payments.filter(function (x) { return x.id === d.id; })[0]; if (p) printHtml(receiptHtml(p)); },
+    delPayment: function (d) { if (!confirm("Delete this payment? Dues will go back up.")) return; db.payments = db.payments.filter(function (p) { return p.id !== d.id; }); save(); render(); },
+    clearPayFilter: function () { S.payMonth = ""; render(); },
+    addExpense: function () {
+      modal('<h3>Add expense</h3><form data-form="expense"><div class="two"><div class="field"><label>Amount</label><input name="amount" type="number" min="0.01" step="any" required></div><div class="field"><label>Date</label><input name="date" type="date" value="' + today() + '" required></div></div>' +
+        '<div class="field"><label>Category</label><select name="category">' + CATS.map(function (c) { return "<option>" + c + "</option>"; }).join("") + "</select></div>" +
+        '<div class="two"><div class="field"><label>Paid to (optional)</label><input name="vendor"></div><div class="field"><label>Note (optional)</label><input name="note"></div></div>' +
+        '<div class="actions"><button class="btn ghost" type="button" data-act="closeModal">Cancel</button><button class="btn" type="submit">Save expense</button></div></form>');
+    },
+    delExpense: function (d) { if (!confirm("Delete this expense?")) return; db.expenses = db.expenses.filter(function (e) { return e.id !== d.id; }); save(); render(); },
+    clearExpFilter: function () { S.expMonth = ""; S.expCat = ""; render(); },
+    printReport: function () {
+      printHtml("<h2>" + esc(db.settings.name) + "</h2><h3>Monthly report — " + esc(monthLabel(S.repMonth)) + "</h3>" + reportInner(S.repMonth) + '<p class="note">Printed ' + esc(fmtDate(today())) + "</p>");
+    },
+    csv: function (d) {
+      var c = compute(), rows;
+      if (d.id === "members") {
+        rows = [["Flat", "Name", "Phone", "Monthly", "Total billed", "Total paid", "Balance", "Active"]].concat(db.members.map(function (m) { var b = c.by[m.id]; return [m.flat, m.name, m.phone || "", m.monthly, b.charged, b.paid, b.balance, m.active === false ? "No" : "Yes"]; }));
+      } else if (d.id === "payments") {
+        rows = [["Receipt", "Date", "Flat", "Name", "Amount", "Method", "Note"]].concat(db.payments.map(function (p) { var m = memberById(p.memberId); return [p.receipt, p.date, m ? m.flat : "", m ? m.name : "", p.amount, p.method, p.note || ""]; }));
+      } else if (d.id === "expenses") {
+        rows = [["Date", "Category", "Paid to", "Note", "Amount"]].concat(db.expenses.map(function (e) { return [e.date, e.category, e.vendor || "", e.note || "", e.amount]; }));
+      } else {
+        rows = [["Flat", "Name", "Phone", "Unpaid months", "Amount due"]].concat(defaultersList().map(function (x) { return [x.m.flat, x.m.name, x.m.phone || "", x.months, x.bal]; }));
+      }
+      download("society-" + d.id + "-" + today() + ".csv", toCsv(rows), "text/csv;charset=utf-8");
+    },
+    backup: function () { download("society-backup-" + today() + ".json", JSON.stringify(db, null, 2), "application/json"); },
+    removePin: function () { if (!confirm("Remove the PIN lock?")) return; db.settings.pin = ""; save(); render(); },
+    resetAll: function () {
+      if (!confirm("This will erase ALL data from this browser. Have you downloaded a backup?")) return;
+      if (!confirm("Last warning: erase everything?")) return;
+      db = defaults(); save(); tab = "dashboard"; render();
+    },
+    unlock: function () {
+      if (hashPin($("#lockPin").value) === db.settings.pin) { $("#lock").classList.add("hidden"); $("#lockPin").value = ""; $("#lockErr").textContent = ""; }
+      else { $("#lockErr").textContent = "Wrong PIN"; }
+    }
+  };
+
+  var forms = {
+    member: function (fd) {
+      var data = { flat: fd.flat.trim(), name: fd.name.trim(), phone: (fd.phone || "").trim(), monthly: Number(fd.monthly) || 0, opening: Number(fd.opening) || 0 };
+      var dupe = db.members.some(function (m) { return m.id !== fd.id && m.flat.toLowerCase() === data.flat.toLowerCase(); });
+      if (dupe && !confirm("Flat " + data.flat + " already exists. Add another member for the same flat?")) return;
+      if (fd.id) {
+        var m = memberById(fd.id); Object.assign(m, data); m.active = !fd.inactive;
+      } else {
+        data.id = uid(); data.active = true; db.members.push(data);
+      }
+      save(); closeModal(); render();
+    },
+    payment: function (fd) {
+      var amt = Number(fd.amount);
+      if (!fd.memberId || !(amt > 0)) { alert("Choose a member and enter a valid amount."); return; }
+      var p = { id: uid(), memberId: fd.memberId, amount: amt, date: fd.date, method: fd.method, note: (fd.note || "").trim(), receipt: receiptNo(db.settings.nextReceipt++), ts: Date.now() };
+      db.payments.push(p); save(); render(); showReceipt(p);
+    },
+    special: function (fd) {
+      var amt = Number(fd.amount); if (!(amt > 0)) return;
+      var targets = fd.target === "all" ? db.members.filter(function (m) { return m.active !== false; }) : [memberById(fd.target)];
+      targets.forEach(function (m) { if (m) db.charges.push({ id: uid(), memberId: m.id, month: fd.month, title: fd.title.trim(), amount: amt, ts: Date.now() }); });
+      S.dueMonth = fd.month; save(); closeModal(); render();
+    },
+    expense: function (fd) {
+      var amt = Number(fd.amount); if (!(amt > 0)) return;
+      db.expenses.push({ id: uid(), date: fd.date, category: fd.category, vendor: (fd.vendor || "").trim(), note: (fd.note || "").trim(), amount: amt, ts: Date.now() });
+      save(); closeModal(); render();
+    },
+    settings: function (fd) {
+      db.settings.name = fd.name.trim() || "My Society"; db.settings.cur = fd.cur.trim() || "Rs";
+      db.settings.maintenance = Number(fd.maintenance) || 0; db.settings.openingCash = Number(fd.openingCash) || 0;
+      db.settings.dueDay = Math.min(28, Math.max(1, Number(fd.dueDay) || 10)); db.settings.billNote = (fd.billNote || "").trim();
+      save(); render(); alert("Settings saved.");
+    },
+    pin: function (fd) {
+      if (!/^[0-9]{4,8}$/.test(fd.pin)) { alert("PIN must be 4 to 8 digits."); return; }
+      db.settings.pin = hashPin(fd.pin); save(); render(); alert("PIN saved. It will be asked the next time the app opens.");
+    }
+  };
+
+  // ================= Events =================
+  document.addEventListener("click", function (e) {
+    if (e.target === $("#modal")) { closeModal(); return; }
+    var t = e.target.closest("[data-act]");
+    if (!t) return;
+    var fn = acts[t.dataset.act];
+    if (fn) fn(t.dataset, t, e);
+  });
+  document.addEventListener("submit", function (e) {
+    var f = e.target.closest("form[data-form]");
+    if (!f) return;
+    e.preventDefault();
+    var fd = {}; new FormData(f).forEach(function (v, k) { fd[k] = v; });
+    forms[f.dataset.form](fd, f);
+  });
+  document.addEventListener("input", function (e) {
+    if (e.target.dataset && e.target.dataset.search) { S.q = e.target.value; var t = $("#tbl"); if (t) t.innerHTML = membersTable(); }
+  });
+  document.addEventListener("change", function (e) {
+    var el = e.target;
+    if (el.dataset && el.dataset.bind) { S[el.dataset.bind] = el.value; render(); return; }
+    if (el.id === "payMember") {
+      var opt = el.options[el.selectedIndex];
+      var due = opt ? Number(opt.dataset.due) : 0;
+      if (due > 0) $("#payAmount").value = due;
+    }
+    if (el.id === "restoreFile" && el.files && el.files[0]) {
+      var rd = new FileReader();
+      rd.onload = function () {
+        try {
+          var d = JSON.parse(rd.result);
+          if (!d || !Array.isArray(d.members) || !Array.isArray(d.payments) || !d.settings) throw new Error("bad");
+          if (!confirm("Restoring replaces all current data with the backup. Continue?")) return;
+          db = Object.assign(defaults(), d); db.settings = Object.assign(defaults().settings, d.settings);
+          save(); render(); alert("Backup restored.");
+        } catch (err) { alert("This file is not a valid backup."); }
+      };
+      rd.readAsText(el.files[0]);
+    }
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") closeModal();
+    if (e.key === "Enter" && !$("#lock").classList.contains("hidden")) acts.unlock();
+  });
+
+  // ================= Start =================
+  if (db.settings.pin) { $("#lockName").textContent = db.settings.name; $("#lock").classList.remove("hidden"); }
+  render();
+})();
+</script>
+</body>
+</html>
