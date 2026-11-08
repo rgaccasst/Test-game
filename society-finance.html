@@ -85,11 +85,26 @@
   .receipt .sig { display: flex; justify-content: space-between; margin-top: 36px; font-size: 12px; }
   .receipt .sig span { border-top: 1px solid #222; padding-top: 4px; min-width: 120px; text-align: center; }
   #printArea { display: none; }
+  #updateBar { display: none; background: var(--warn); color: #111; padding: 9px 14px; text-align: center; font-weight: 600; }
+  #updateBar.show { display: block; }
+  .billslip { background: #fff; color: #111; border: 1.5px solid #222; border-radius: 4px; padding: 10px 14px; margin: 0 0 12px; break-inside: avoid; page-break-inside: avoid; font-size: 12.5px; font-family: system-ui, Arial, sans-serif; }
+  .billslip .bh { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1.5px solid #222; padding-bottom: 5px; margin-bottom: 6px; gap: 8px; }
+  .billslip .bh b { font-size: 16px; }
+  .billslip .bh span { font-size: 11px; letter-spacing: .08em; font-weight: 700; }
+  .billslip .meta { display: flex; flex-wrap: wrap; gap: 3px 18px; margin-bottom: 6px; }
+  .billslip table { width: 100%; min-width: 0; border-collapse: collapse; }
+  .billslip td { padding: 3px 0; border-bottom: 1px dotted #999; color: #111; }
+  .billslip td.num { text-align: right; white-space: nowrap; }
+  .billslip tr.tot td { border-top: 1.5px solid #222; border-bottom: 0; font-weight: 700; font-size: 14px; padding-top: 6px; }
+  .billslip .foot { margin-top: 6px; font-size: 11.5px; white-space: pre-line; }
+  .billslip .paidtag { font-weight: 700; color: #0a7a5a; }
   @media print {
     body > *:not(#printArea) { display: none !important; }
     #printArea { display: block !important; color: #111; background: #fff; padding: 10px; }
     #printArea table { min-width: 0; }
     #printArea th, #printArea td { color: #111; border-bottom: 1px solid #bbb; }
+    #printArea .billslip td { border-bottom: 1px dotted #999; }
+    #printArea .billslip tr.tot td { border-bottom: 0; border-top: 1.5px solid #222; }
     html, body { background: #fff; }
   }
 </style>
@@ -113,6 +128,7 @@
   </div>
   <nav id="nav"></nav>
 </header>
+<div id="updateBar"></div>
 <main id="view"></main>
 <div id="modal" class="modal hidden"><div class="box" id="modalBox"></div></div>
 <div id="printArea"></div>
@@ -121,11 +137,13 @@
 (function () {
   "use strict";
 
+  var APP_VERSION = "2026.11.08";
+
   // ================= Data layer =================
   var KEY = "society_finance_v1";
   var defaults = function () {
     return {
-      settings: { name: "My Society", cur: "Rs", maintenance: 2000, openingCash: 0, pin: "", nextReceipt: 1 },
+      settings: { name: "My Society", cur: "Rs", maintenance: 2000, openingCash: 0, pin: "", nextReceipt: 1, billNote: "", dueDay: 10 },
       members: [], charges: [], payments: [], expenses: []
     };
   };
@@ -314,13 +332,14 @@
     var total = sum(list, "amount"), paid = list.reduce(function (a, x) { return a + (c.chargePaid[x.id] || 0); }, 0);
     var html = '<div class="bar"><h2>Monthly bills</h2><div class="row">' + monthInput("dueMonth", m, "dueMonth") +
       '<button class="btn" data-act="genBills">Generate bills</button><button class="btn ghost" data-act="specialCharge">+ Special charge</button></div></div>';
+    html += '<div class="panel"><h3>Bills to send to homes</h3><p class="note">Prints one bill slip per house for <b>' + esc(monthLabel(m)) + '</b>, sorted by street so you can deliver them in order. Choose “Save as PDF” in the print window to share on WhatsApp.</p><div class="row"><button class="btn" data-act="printBills" data-id="all">Print all bills</button><button class="btn ghost" data-act="printBills" data-id="unpaid">Print only members who owe</button></div></div>';
     html += '<div class="cards"><div class="card"><div class="k">Billed for ' + esc(monthLabel(m)) + '</div><div class="v">' + esc(money(total)) + '</div></div><div class="card"><div class="k">Settled so far</div><div class="v in">' + esc(money(paid)) + '</div></div><div class="card"><div class="k">Still pending</div><div class="v warn">' + esc(money(total - paid)) + "</div></div></div>";
     if (!list.length) return html + '<div class="panel empty">No bills for this month yet. Press “Generate bills” to bill every active member.</div>';
     html += '<div class="tw"><table><thead><tr><th>Flat</th><th>Name</th><th>Charge</th><th class="num">Amount</th><th class="num">Paid</th><th>Status</th><th></th></tr></thead><tbody>' +
       list.map(function (x) {
         var mm = memberById(x.memberId), pa = c.chargePaid[x.id] || 0;
         var st = pa >= x.amount ? '<span class="badge b-paid">Paid</span>' : pa > 0 ? '<span class="badge b-part">Partial</span>' : '<span class="badge b-unpaid">Unpaid</span>';
-        return "<tr><td><b>" + esc(mm ? mm.flat : "?") + "</b></td><td>" + esc(mm ? mm.name : "") + "</td><td>" + esc(x.title || "Maintenance") + '</td><td class="num">' + esc(money(x.amount)) + '</td><td class="num">' + esc(money(pa)) + "</td><td>" + st + '</td><td><button class="btn ghost sm" data-act="delCharge" data-id="' + x.id + '">Delete</button></td></tr>';
+        return "<tr><td><b>" + esc(mm ? mm.flat : "?") + "</b></td><td>" + esc(mm ? mm.name : "") + "</td><td>" + esc(x.title || "Maintenance") + '</td><td class="num">' + esc(money(x.amount)) + '</td><td class="num">' + esc(money(pa)) + "</td><td>" + st + '</td><td><button class="btn sm" data-act="billOne" data-id="' + x.memberId + '">Bill</button> ' + (mm && phoneIntl(mm.phone) ? '<button class="btn ghost sm" data-act="waBill" data-id="' + x.memberId + '">WhatsApp</button> ' : "") + '<button class="btn ghost sm" data-act="delCharge" data-id="' + x.id + '">Delete</button></td></tr>';
       }).join("") + "</tbody></table></div>";
     html += '<p class="note">Payments are applied to the oldest unpaid bill first, so you only record one payment per receipt.</p>';
     return html;
@@ -404,10 +423,14 @@
       '<div class="two"><div class="field"><label>Currency label</label><input name="cur" value="' + esc(s.cur) + '" required></div>' +
       '<div class="field"><label>Default monthly maintenance</label><input name="maintenance" type="number" min="0" step="any" value="' + esc(s.maintenance) + '" required></div></div>' +
       '<div class="field"><label>Opening cash balance (money already in hand when you start)</label><input name="openingCash" type="number" step="any" value="' + esc(s.openingCash) + '" required></div>' +
+      '<div class="two"><div class="field"><label>Bill due day of month (1–28)</label><input name="dueDay" type="number" min="1" max="28" value="' + esc(s.dueDay || 10) + '"></div><div></div></div>' +
+      '<div class="field"><label>Payment instructions printed on every bill (bank account, JazzCash, office timing…)</label><textarea name="billNote" rows="3" placeholder="e.g. Bank: XYZ Bank, A/C Title: ..., A/C No: ...">' + esc(s.billNote || "") + '</textarea></div>' +
       '<button class="btn" type="submit">Save settings</button></form></div>' +
       '<div class="panel"><h3>App lock (PIN)</h3><p class="note">Asks for a PIN each time the app opens. This is a casual lock to keep curious people out; it does not encrypt the data stored in this browser.</p>' +
       '<form data-form="pin"><div class="field"><label>' + (s.pin ? "Change PIN (4–8 digits)" : "Set PIN (4–8 digits)") + '</label><input name="pin" type="password" inputmode="numeric" pattern="[0-9]{4,8}" placeholder="e.g. 1234" required></div>' +
       '<div class="row"><button class="btn" type="submit">' + (s.pin ? "Change PIN" : "Set PIN") + "</button>" + (s.pin ? '<button class="btn ghost" type="button" data-act="removePin">Remove PIN</button>' : "") + "</div></form></div>" +
+      '<div class="panel"><h3>App updates</h3><p class="note">Installed version: <b>' + esc(APP_VERSION) + '</b>. When a newer version of this app is published on the website, press the button below. Your data is kept safe.</p>' +
+      '<div class="row"><button class="btn" data-act="checkUpdate">Check for updates</button><button class="btn ghost" data-act="applyUpdate">Update now</button></div><p class="note" id="updMsg"></p></div>' +
       '<div class="panel"><h3>Backup &amp; restore</h3><p class="note"><b>Important:</b> your data lives only in this browser on this device. Download a backup regularly and keep it safe (for example on WhatsApp to yourself or Google Drive). To use the app on another phone or computer, restore the backup file there.</p>' +
       '<div class="row"><button class="btn" data-act="backup">Download backup</button><label class="btn ghost" style="margin:0;cursor:pointer;color:var(--text)">Restore backup<input type="file" accept=".json,application/json" id="restoreFile" style="display:none"></label></div></div>' +
       '<div class="panel"><h3>Danger zone</h3><p class="note">Deletes every member, bill, payment and expense from this browser.</p><button class="btn danger" data-act="resetAll">Erase all data</button></div></div>';
@@ -486,10 +509,112 @@
       "<p><b>" + (bal > 0 ? "Amount due: " + esc(money(bal)) : bal < 0 ? "Advance balance: " + esc(money(-bal)) : "Account is clear") + "</b></p>";
   }
 
+  // ================= Bills (to send to homes) =================
+  function monthEnd(month) {
+    var d = new Date(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0);
+    return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+  }
+  function billData(m, month) {
+    var start = month + "-01", end = monthEnd(month);
+    var cur = db.charges.filter(function (c) { return c.memberId === m.id && c.month === month; });
+    var prevCharges = (Number(m.opening) || 0) + sum(db.charges.filter(function (c) { return c.memberId === m.id && c.month < month; }), "amount");
+    var prevPaid = sum(db.payments.filter(function (p) { return p.memberId === m.id && p.date < start; }), "amount");
+    var paid = sum(db.payments.filter(function (p) { return p.memberId === m.id && p.date >= start && p.date <= end; }), "amount");
+    var arrears = prevCharges - prevPaid, billed = sum(cur, "amount");
+    return { cur: cur, arrears: arrears, billed: billed, paid: paid, total: arrears + billed - paid };
+  }
+  function billNo(m, month) { return month.replace("-", "") + "-" + (m.uid || String(db.members.indexOf(m) + 1).padStart(3, "0")); }
+  function dueDate(month) { return month + "-" + pad(Math.min(28, Math.max(1, Number(db.settings.dueDay) || 10))); }
+  function billSlip(m, month) {
+    var b = billData(m, month), rows = "";
+    function row(label, amt, neg) { return "<tr><td>" + esc(label) + '</td><td class="num">' + (neg ? "− " : "") + esc(money(Math.abs(amt))) + "</td></tr>"; }
+    if (Math.abs(b.arrears) > 0.004) rows += row(b.arrears > 0 ? "Previous dues (arrears)" : "Advance credit brought forward", b.arrears, b.arrears < 0);
+    b.cur.forEach(function (c) { rows += row((c.title || "Maintenance") + " – " + monthLabel(month), c.amount); });
+    if (b.paid > 0) rows += row("Payments received in " + monthLabel(month), b.paid, true);
+    var totalRow = b.total > 0.004
+      ? '<tr class="tot"><td>TOTAL PAYABLE</td><td class="num">' + esc(money(b.total)) + "</td></tr>"
+      : '<tr class="tot"><td>' + (b.total < -0.004 ? "ADVANCE BALANCE (nothing to pay)" : "NO PAYMENT DUE") + '</td><td class="num"><span class="paidtag">' + (b.total < -0.004 ? esc(money(-b.total)) : "Paid, thank you") + "</span></td></tr>";
+    var where = [m.street ? "Street " + m.street : "", m.block ? "Block " + m.block : ""].filter(Boolean).join(" · ");
+    return '<div class="billslip"><div class="bh"><b>' + esc(db.settings.name) + "</b><span>MAINTENANCE BILL</span></div>" +
+      '<div class="meta"><span><b>Bill no:</b> ' + esc(billNo(m, month)) + "</span><span><b>Month:</b> " + esc(monthLabel(month)) + "</span><span><b>Due date:</b> " + esc(fmtDate(dueDate(month))) + "</span></div>" +
+      '<div class="meta"><span><b>Owner / resident:</b> ' + esc(m.name) + "</span><span><b>Plot:</b> " + esc(m.flat) + "</span>" + (where ? "<span>" + esc(where) + "</span>" : "") + "</div>" +
+      "<table><tbody>" + rows + totalRow + "</tbody></table>" +
+      (b.total > 0.004 ? '<div class="foot">Please pay on or before ' + esc(fmtDate(dueDate(month))) + ". " + esc(db.settings.billNote || "") + "</div>" : (db.settings.billNote ? '<div class="foot">' + esc(db.settings.billNote) + "</div>" : "")) +
+      "</div>";
+  }
+  function billMembers(month, mode) {
+    return db.members.map(function (m) { return { m: m, b: billData(m, month) }; })
+      .filter(function (x) {
+        if (x.m.active === false && !(x.b.billed > 0)) return false;
+        if (!(x.b.billed > 0 || x.b.arrears > 0.004)) return false;
+        return mode === "unpaid" ? x.b.total > 0.004 : true;
+      })
+      .sort(function (a, b) {
+        var sa = Number(a.m.street) || 0, sb = Number(b.m.street) || 0;
+        return sa - sb || a.m.flat.localeCompare(b.m.flat, undefined, { numeric: true });
+      });
+  }
+  function billWhatsApp(m, month) {
+    var b = billData(m, month);
+    var msg = "Assalam o Alaikum " + m.name + ",\n" + db.settings.name + " – maintenance bill for " + monthLabel(month) + "\nPlot: " + m.flat + "\n" +
+      (b.arrears > 0.004 ? "Previous dues: " + money(b.arrears) + "\n" : "") +
+      "This month: " + money(b.billed) + "\n" +
+      (b.paid > 0 ? "Payments received: " + money(b.paid) + "\n" : "") +
+      "Total payable: " + money(Math.max(b.total, 0)) + "\nDue date: " + fmtDate(dueDate(month)) +
+      (db.settings.billNote ? "\n" + db.settings.billNote : "") + "\nJazakAllah.";
+    window.open("https://wa.me/" + phoneIntl(m.phone) + "?text=" + encodeURIComponent(msg), "_blank", "noopener");
+  }
+
+  // ================= App updates =================
+  function pageUrl() { return location.href.split("#")[0].split("?")[0]; }
+  function remoteVersion() {
+    return fetch(pageUrl(), { cache: "no-store" }).then(function (r) {
+      if (!r.ok) throw new Error("http");
+      return r.text();
+    }).then(function (t) {
+      var m = t.match(/APP_VERSION\s*=\s*"([^"]+)"/);
+      if (!m) throw new Error("noversion");
+      return m[1];
+    });
+  }
+  function setUpdMsg(t) { var e = $("#updMsg"); if (e) e.textContent = t; }
+  function showUpdateBar(v) {
+    var b = $("#updateBar");
+    b.innerHTML = "A new version (" + esc(v) + ') is available. <button class="btn sm" data-act="applyUpdate" style="background:#111">Update now</button>';
+    b.classList.add("show");
+  }
+
   // ================= Actions =================
   var acts = {
     tab: function (d) { tab = d.id; render(); window.scrollTo(0, 0); },
     closeModal: closeModal,
+    checkUpdate: function () {
+      setUpdMsg("Checking…");
+      remoteVersion().then(function (v) {
+        if (v === APP_VERSION) setUpdMsg("You already have the latest version (" + APP_VERSION + ").");
+        else { setUpdMsg("New version available: " + v + ". Press “Update now”."); showUpdateBar(v); }
+      }).catch(function () {
+        setUpdMsg("Could not check. Make sure you are online and that you opened the app from its website link, not from a saved file.");
+      });
+    },
+    applyUpdate: function () {
+      try { localStorage.setItem(KEY + "_prev", JSON.stringify(db)); } catch (e) {}
+      setUpdMsg("Updating…");
+      var b = $("#updateBar"); if (b) { b.innerHTML = "Updating…"; b.classList.add("show"); }
+      fetch(pageUrl(), { cache: "reload" }).then(function () { location.reload(); })
+        .catch(function () { alert("Update failed. Check your internet connection and try again."); render(); });
+    },
+    printBills: function (d) {
+      var list = billMembers(S.dueMonth, d.id);
+      if (!list.length) { alert(d.id === "unpaid" ? "Nobody owes anything for " + monthLabel(S.dueMonth) + "." : "No bills for " + monthLabel(S.dueMonth) + " yet. Press “Generate bills” first."); return; }
+      printHtml(list.map(function (x) { return billSlip(x.m, S.dueMonth); }).join(""));
+    },
+    billOne: function (d) {
+      var m = memberById(d.id); if (!m) return;
+      modal(billSlip(m, S.dueMonth) + '<div class="actions"><button class="btn ghost" data-act="closeModal">Close</button>' + (phoneIntl(m.phone) ? '<button class="btn ghost" data-act="waBill" data-id="' + m.id + '">Send on WhatsApp</button>' : "") + '<button class="btn" data-act="printBillOne" data-id="' + m.id + '">Print / Save as PDF</button></div>');
+    },
+    printBillOne: function (d) { var m = memberById(d.id); if (m) printHtml(billSlip(m, S.dueMonth)); },
+    waBill: function (d) { var m = memberById(d.id); if (m) billWhatsApp(m, S.dueMonth); },
     addMember: function () { modal(memberForm()); },
     editMember: function (d) { modal(memberForm(memberById(d.id))); },
     delMember: function (d) {
@@ -605,6 +730,7 @@
     settings: function (fd) {
       db.settings.name = fd.name.trim() || "My Society"; db.settings.cur = fd.cur.trim() || "Rs";
       db.settings.maintenance = Number(fd.maintenance) || 0; db.settings.openingCash = Number(fd.openingCash) || 0;
+      db.settings.dueDay = Math.min(28, Math.max(1, Number(fd.dueDay) || 10)); db.settings.billNote = (fd.billNote || "").trim();
       save(); render(); alert("Settings saved.");
     },
     pin: function (fd) {
@@ -661,6 +787,11 @@
   // ================= Start =================
   if (db.settings.pin) { $("#lockName").textContent = db.settings.name; $("#lock").classList.remove("hidden"); }
   render();
+  try {
+    if (/^https?:/.test(location.protocol) && navigator.onLine) {
+      remoteVersion().then(function (v) { if (v !== APP_VERSION) showUpdateBar(v); }).catch(function () {});
+    }
+  } catch (e) {}
 })();
 </script>
 </body>
