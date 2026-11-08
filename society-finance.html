@@ -101,6 +101,7 @@
   .billslip .payrow .foot { margin-top: 0; flex: 1; }
   .billslip .qrbox { text-align: center; font-size: 10.5px; line-height: 1.25; max-width: 110px; }
   .billslip .qrbox img { width: 88px; height: 88px; display: block; margin: 0 auto 2px; object-fit: contain; background: #fff; }
+  input.wr { width: 110px; text-align: right; padding: 6px 8px; }
   .billslip .paidtag { font-weight: 700; color: #0a7a5a; }
   @media print {
     body > *:not(#printArea) { display: none !important; }
@@ -136,19 +137,77 @@
 <main id="view"></main>
 <div id="modal" class="modal hidden"><div class="box" id="modalBox"></div></div>
 <div id="printArea"></div>
+<template id="readerTpl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Water readings</title>
+<style>
+body{margin:0;font-family:system-ui,Arial,sans-serif;background:#eef3f6;color:#17212b}
+header{position:sticky;top:0;background:#0f9d78;color:#fff;padding:10px 14px;z-index:5}
+header h1{margin:0;font-size:17px}header div{font-size:13px;opacity:.95}
+#q{width:100%;box-sizing:border-box;margin-top:8px;padding:10px;border:0;border-radius:8px;font-size:16px}
+#list{padding:10px}
+.c{background:#fff;border-radius:10px;padding:10px 12px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.c b{font-size:16px}.c small{color:#5b6b7a;display:block}
+.r{display:flex;gap:10px;align-items:center;margin-top:8px}
+.r input{flex:1;font-size:20px;padding:8px;border:2px solid #cbd5df;border-radius:8px;width:100%;box-sizing:border-box}
+.u{min-width:110px;text-align:right;font-weight:700}
+.bad{color:#d64545}.ok{color:#0f9d78}
+#bar{position:sticky;bottom:0;background:#fff;padding:10px;border-top:1px solid #ccd;display:flex;gap:10px;align-items:center}
+#bar button{flex:1;padding:14px;font-size:16px;font-weight:700;border:0;border-radius:10px;background:#0f9d78;color:#fff}
+</style>
+<header><h1 id="t"></h1><div id="s"></div><input id="q" type="search" placeholder="Search plot or owner"></header>
+<div id="list"></div>
+<div id="bar"><span id="cnt"></span><button id="send">Share readings file</button></div>
+<script>
+(function(){
+var D=__DATA__, KEY="water_reader_"+D.month, vals={};
+try{vals=JSON.parse(localStorage.getItem(KEY)||"{}")}catch(e){vals={}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(vals))}catch(e){}}
+document.getElementById("t").textContent=D.society+" - Water readings";
+document.getElementById("s").textContent=D.monthLabel+" - enter the current meter reading for each house";
+var list=document.getElementById("list"),cards=[];
+function count(){document.getElementById("cnt").textContent=Object.keys(vals).length+" / "+D.rows.length+" done"}
+D.rows.forEach(function(r){
+ var c=document.createElement("div");c.className="c";
+ var b=document.createElement("b");b.textContent=r.label;
+ var sm=document.createElement("small");sm.textContent=(r.name||"")+(r.street?" - Street "+r.street:"")+" - Previous reading: "+r.prev;
+ var row=document.createElement("div");row.className="r";
+ var inp=document.createElement("input");inp.type="number";inp.inputMode="decimal";inp.placeholder="Current reading";inp.min="0";inp.step="any";
+ if(vals[r.id]!==undefined)inp.value=vals[r.id];
+ var u=document.createElement("div");u.className="u";
+ function calc(){
+  var v=inp.value;
+  if(v===""){u.textContent="";u.className="u";return}
+  var n=Number(v)-r.prev;
+  if(n<0){u.textContent="Lower than previous!";u.className="u bad"}
+  else{u.textContent=(Math.round(n*100)/100)+" units";u.className="u ok"}
+ }
+ inp.addEventListener("input",function(){if(inp.value==="")delete vals[r.id];else vals[r.id]=inp.value;save();calc();count()});
+ row.appendChild(inp);row.appendChild(u);c.appendChild(b);c.appendChild(sm);c.appendChild(row);list.appendChild(c);
+ cards.push({el:c,text:(r.label+" "+(r.name||"")).toLowerCase()});calc();
+});
+count();
+document.getElementById("q").addEventListener("input",function(e){var q=e.target.value.toLowerCase().trim();cards.forEach(function(c){c.el.style.display=(!q||c.text.indexOf(q)!==-1)?"":"none"})});
+document.getElementById("send").addEventListener("click",function(){
+ var out={type:"water-readings",month:D.month,society:D.society,readings:Object.keys(vals).map(function(id){return {id:id,reading:Number(vals[id])}})};
+ var json=JSON.stringify(out),name="water-readings-"+D.month+".json",file=null;
+ try{file=new File([json],name,{type:"application/json"})}catch(e){file=null}
+ if(file&&navigator.canShare&&navigator.canShare({files:[file]})){navigator.share({files:[file],title:name}).catch(function(){})}
+ else{var a=document.createElement("a");a.href=URL.createObjectURL(new Blob([json],{type:"application/json"}));a.download=name;document.body.appendChild(a);a.click();a.remove()}
+});
+})();
+</script></template>
 
 <script>
 (function () {
   "use strict";
 
-  var APP_VERSION = "2026.11.09";
+  var APP_VERSION = "2026.11.10";
 
   // ================= Data layer =================
   var KEY = "society_finance_v1";
   var defaults = function () {
     return {
-      settings: { name: "My Society", cur: "Rs", maintenance: 2000, openingCash: 0, pin: "", nextReceipt: 1, billNote: "", dueDay: 10 },
-      members: [], charges: [], payments: [], expenses: []
+      settings: { name: "My Society", cur: "Rs", maintenance: 2000, openingCash: 0, pin: "", nextReceipt: 1, billNote: "", dueDay: 10, waterRate: 25 },
+      members: [], charges: [], payments: [], expenses: [], readings: []
     };
   };
   var db = defaults();
@@ -230,8 +289,8 @@
 
   // ================= UI state =================
   var tab = "dashboard";
-  var S = { q: "", dueMonth: curMonth(), payMonth: "", expMonth: "", expCat: "", repMonth: curMonth() };
-  var TABS = [["dashboard", "Dashboard"], ["members", "Members"], ["dues", "Monthly bills"], ["payments", "Payments"], ["expenses", "Expenses"], ["reports", "Reports"], ["settings", "Settings"]];
+  var S = { q: "", dueMonth: curMonth(), payMonth: "", expMonth: "", expCat: "", repMonth: curMonth(), waterMonth: curMonth(), wdraft: {}, wdraftMonth: "" };
+  var TABS = [["dashboard", "Dashboard"], ["members", "Members"], ["dues", "Monthly bills"], ["water", "Water"], ["payments", "Payments"], ["expenses", "Expenses"], ["reports", "Reports"], ["settings", "Settings"]];
 
   function modal(html, wide) {
     $("#modalBox").className = "box" + (wide ? " wide" : "");
@@ -379,6 +438,99 @@
       }).join("") + "</tbody></table></div>";
   };
 
+  // ---------- Water ----------
+  function memSort(a, b) {
+    var sa = Number(a.street) || 0, sb = Number(b.street) || 0;
+    return sa - sb || a.flat.localeCompare(b.flat, undefined, { numeric: true });
+  }
+  function waterMembers() { return db.members.filter(function (m) { return m.active !== false && m.water !== false; }).sort(memSort); }
+  function waterPrevOf(m, month) {
+    var best = null;
+    db.readings.forEach(function (r) { if (r.memberId === m.id && r.month < month && (!best || r.month > best.month)) best = r; });
+    return best ? { val: best.reading, first: false } : { val: Number(m.meterStart) || 0, first: true };
+  }
+  function waterCalc(id) {
+    var m = memberById(id), month = S.waterMonth, rate = Number(db.settings.waterRate) || 0;
+    var saved = db.readings.filter(function (r) { return r.memberId === id && r.month === month; })[0];
+    var d = S.wdraft[id] || {}, pv = waterPrevOf(m, month);
+    var cur = d.cur !== undefined ? d.cur : (saved ? saved.reading : "");
+    var prev = d.prev !== undefined ? d.prev : (saved ? saved.prev : pv.val);
+    var has = cur !== "" && cur != null, n = Number(cur) - Number(prev);
+    var ok = has && isFinite(n) && n >= 0;
+    var units = ok ? Math.round(n * 100) / 100 : 0;
+    return { m: m, saved: saved, first: pv.first && !saved, prev: prev, cur: cur, has: has, ok: ok, units: units, amount: ok ? Math.round(units * rate * 100) / 100 : 0 };
+  }
+  views.water = function () {
+    S.waterMonth = S.waterMonth || curMonth();
+    var month = S.waterMonth, rate = Number(db.settings.waterRate) || 0;
+    if (S.wdraftMonth !== month) { S.wdraft = {}; S.wdraftMonth = month; }
+    var list = waterMembers(), units = 0, amt = 0, filled = 0, anyFirst = false;
+    var body = list.map(function (m) {
+      var c = waterCalc(m.id);
+      if (c.first) anyFirst = true;
+      if (c.ok) { units += c.units; amt += c.amount; filled++; }
+      var u = !c.has ? "" : c.ok ? c.units : "Check";
+      return "<tr><td><b>" + esc(m.flat) + "</b></td><td>" + esc(m.name) + '</td><td class="num">' +
+        (c.first ? '<input class="wr" type="number" step="any" min="0" data-wp="' + m.id + '" value="' + esc(c.prev) + '">' : esc(c.prev)) +
+        '</td><td class="num"><input class="wr" type="number" step="any" min="0" data-wr="' + m.id + '" value="' + esc(c.cur) + '"></td><td class="num wu ' + (c.has && !c.ok ? "pos" : "") + '">' + esc(u) +
+        '</td><td class="num wa">' + (c.ok ? esc(money(c.amount)) : "") + "</td></tr>";
+    }).join("");
+    var html = '<div class="bar"><h2>Water bills</h2><div class="row">' + monthInput("waterMonth", month, "waterMonth") + "</div></div>";
+    html += '<div class="cards"><div class="card"><div class="k">Houses with water</div><div class="v">' + list.length + '</div></div><div class="card"><div class="k">Readings entered</div><div class="v">' + filled + '</div></div><div class="card"><div class="k">Total units</div><div class="v">' + esc(units) + '</div></div><div class="card"><div class="k">Water amount @ ' + esc(money(rate)) + '/unit</div><div class="v in">' + esc(money(amt)) + "</div></div></div>";
+    html += '<div class="panel"><h3>Meter reading office</h3><p class="note">1) Send the <b>reader form</b> to the person who takes readings; 2) he fills it on his phone and shares the small file back; 3) press <b>Import readings file</b> here, check the list, then <b>Save &amp; add to bills</b>. Or type readings in the table yourself. You can also print a paper sheet.</p>' +
+      '<div class="row"><button class="btn" data-act="waterForm">Download reader form</button><button class="btn ghost" data-act="waterSheet">Print paper sheet</button>' +
+      '<label class="btn ghost" style="margin:0;cursor:pointer;color:var(--text)">Import readings file<input type="file" accept=".json,application/json" id="waterFile" style="display:none"></label></div></div>';
+    if (anyFirst) html += '<div class="panel" style="border-left:4px solid var(--warn)"><b>First time?</b> <span class="note">Some houses have no earlier reading. Enter today\'s meter reading for every house and press <b>Save as starting readings (no bill)</b>. From next month, units are worked out automatically.</span></div>';
+    if (!list.length) return html + '<div class="panel empty">No members with a water connection.</div>';
+    html += '<div class="tw"><table><thead><tr><th>Plot</th><th>Owner</th><th class="num">Previous</th><th class="num">Current reading</th><th class="num">Units</th><th class="num">Amount</th></tr></thead><tbody>' + body + "</tbody></table></div>";
+    html += '<div class="actions" style="justify-content:flex-start;margin-top:14px"><button class="btn ghost" data-act="saveReadings">Save readings</button><button class="btn" data-act="saveAddReadings">Save &amp; add to bills</button>' + (anyFirst ? '<button class="btn ghost" data-act="saveStartReadings">Save as starting readings (no bill)</button>' : "") + "</div>";
+    html += '<p class="note">“Save &amp; add to bills” puts the water amount on each house’s bill for ' + esc(monthLabel(month)) + ". Press it again after corrections; the old water charge for that month is replaced, not doubled.</p>";
+    return html;
+  };
+  function commitReadings(mode) {
+    var month = S.waterMonth, rate = Number(db.settings.waterRate) || 0, saved = 0, added = 0, bad = [];
+    waterMembers().forEach(function (m) {
+      var c = waterCalc(m.id);
+      if (!c.has) return;
+      var cur = Number(c.cur), prev = Number(c.prev);
+      if (mode === "start") prev = cur;
+      else if (!c.ok) { bad.push(m.flat); return; }
+      if (!isFinite(cur) || !isFinite(prev)) { bad.push(m.flat); return; }
+      var units = Math.round((cur - prev) * 100) / 100, amount = Math.round(units * rate * 100) / 100;
+      db.readings = db.readings.filter(function (x) { return !(x.memberId === m.id && x.month === month); });
+      db.readings.push({ id: uid(), memberId: m.id, month: month, prev: prev, reading: cur, units: units, rate: rate, amount: amount, ts: Date.now() });
+      if (c.first) m.meterStart = prev;
+      saved++;
+      if (mode === "bill") {
+        db.charges = db.charges.filter(function (x) { return !(x.kind === "water" && x.memberId === m.id && x.month === month); });
+        if (amount > 0) {
+          db.charges.push({ id: uid(), memberId: m.id, month: month, title: "Water bill", detail: "Meter " + prev + " → " + cur + " = " + units + " units × " + rate, amount: amount, kind: "water", ts: Date.now() });
+          added++;
+        }
+      }
+    });
+    save(); S.wdraft = {}; render();
+    var msg = saved + " reading(s) saved." + (mode === "bill" ? " " + added + " water charge(s) added to the bills of " + monthLabel(month) + "." : "");
+    if (bad.length) msg += "\n\nNot saved (reading is lower than the previous one or invalid): " + bad.slice(0, 15).join(", ") + (bad.length > 15 ? "…" : "") + ".\nCorrect them and save again.";
+    if (!saved && !bad.length) msg = "No readings to save. Type the current meter readings first.";
+    alert(msg);
+  }
+  function readerFormHtml(month) {
+    var rows = waterMembers().map(function (m) {
+      var pv = waterPrevOf(m, month);
+      var sv = db.readings.filter(function (r) { return r.memberId === m.id && r.month === month; })[0];
+      return { id: m.id, label: m.flat, name: m.name, street: m.street || "", prev: sv ? sv.prev : pv.val };
+    });
+    var data = { society: db.settings.name, month: month, monthLabel: monthLabel(month), rows: rows };
+    var json = JSON.stringify(data).replace(/</g, "\\u003c").replace(/\u2028/g, "\\u2028").replace(/\u2029/g, "\\u2029");
+    return "<!DOCTYPE html>\n" + $("#readerTpl").innerHTML.replace("__DATA__", function () { return json; });
+  }
+  function waterSheetHtml(month) {
+    var rows = waterMembers().map(function (m) { var pv = waterPrevOf(m, month); var sv = db.readings.filter(function (r) { return r.memberId === m.id && r.month === month; })[0]; return { m: m, prev: sv ? sv.prev : pv.val }; });
+    return "<h2>" + esc(db.settings.name) + "</h2><h3>Water meter reading sheet — " + esc(monthLabel(month)) + "</h3><table><thead><tr><th>#</th><th>Plot</th><th>Owner</th><th>Street</th><th class=\"num\">Previous</th><th>Current reading</th></tr></thead><tbody>" +
+      rows.map(function (r, i) { return "<tr><td>" + (i + 1) + "</td><td>" + esc(r.m.flat) + "</td><td>" + esc(r.m.name) + "</td><td>" + esc(r.m.street || "") + '</td><td class="num">' + esc(r.prev) + '</td><td style="width:140px">&nbsp;</td></tr>'; }).join("") + "</tbody></table>";
+  }
+
   // ---------- Reports ----------
   function monthReport(m) {
     var start = m + "-01";
@@ -427,7 +579,7 @@
       '<div class="two"><div class="field"><label>Currency label</label><input name="cur" value="' + esc(s.cur) + '" required></div>' +
       '<div class="field"><label>Default monthly maintenance</label><input name="maintenance" type="number" min="0" step="any" value="' + esc(s.maintenance) + '" required></div></div>' +
       '<div class="field"><label>Opening cash balance (money already in hand when you start)</label><input name="openingCash" type="number" step="any" value="' + esc(s.openingCash) + '" required></div>' +
-      '<div class="two"><div class="field"><label>Bill due day of month (1–28)</label><input name="dueDay" type="number" min="1" max="28" value="' + esc(s.dueDay || 10) + '"></div><div></div></div>' +
+      '<div class="two"><div class="field"><label>Bill due day of month (1–28)</label><input name="dueDay" type="number" min="1" max="28" value="' + esc(s.dueDay || 10) + '"></div><div class="field"><label>Water rate per unit</label><input name="waterRate" type="number" min="0" step="any" value="' + esc(s.waterRate != null ? s.waterRate : 25) + '"></div></div>' +
       '<div class="field"><label>Payment instructions printed on every bill (bank account, JazzCash, office timing…)</label><textarea name="billNote" rows="3" placeholder="e.g. Bank: XYZ Bank, A/C Title: ..., A/C No: ...">' + esc(s.billNote || "") + '</textarea></div>' +
       '<button class="btn" type="submit">Save settings</button></form></div>' +
       '<div class="panel"><h3>App lock (PIN)</h3><p class="note">Asks for a PIN each time the app opens. This is a casual lock to keep curious people out; it does not encrypt the data stored in this browser.</p>' +
@@ -461,6 +613,7 @@
       '<div class="field"><label>Resident name</label><input name="name" value="' + esc(m.name || "") + '" required></div>' +
       '<div class="two"><div class="field"><label>Monthly maintenance</label><input name="monthly" type="number" min="0" step="any" value="' + esc(m.monthly != null ? m.monthly : db.settings.maintenance) + '" required></div>' +
       '<div class="field"><label>Previous dues (before using this app)</label><input name="opening" type="number" min="0" step="any" value="' + esc(m.opening || 0) + '"></div></div>' +
+      '<div class="two"><div class="field"><label>Water meter: starting reading</label><input name="meterStart" type="number" min="0" step="any" value="' + esc(m.meterStart || 0) + '"></div><div class="field"><label><input type="checkbox" name="nowater" value="1" style="width:auto" ' + (m.water === false ? "checked" : "") + '> No water connection</label></div></div>' +
       (m.id ? '<div class="field"><label><input type="checkbox" name="inactive" value="1" style="width:auto" ' + (m.active === false ? "checked" : "") + "> Inactive (moved out; skipped when generating bills)</label></div>" : "") +
       '<div class="actions">' + (m.id ? '<button class="btn danger" type="button" data-act="delMember" data-id="' + m.id + '" style="margin-right:auto">Delete</button>' : "") +
       '<button class="btn ghost" type="button" data-act="closeModal">Cancel</button><button class="btn" type="submit">Save</button></div></form>';
@@ -534,9 +687,9 @@
   function dueDate(month) { return month + "-" + pad(Math.min(28, Math.max(1, Number(db.settings.dueDay) || 10))); }
   function billSlip(m, month) {
     var b = billData(m, month), rows = "";
-    function row(label, amt, neg) { return "<tr><td>" + esc(label) + '</td><td class="num">' + (neg ? "− " : "") + esc(money(Math.abs(amt))) + "</td></tr>"; }
+    function row(label, amt, neg, sub) { return "<tr><td>" + esc(label) + (sub ? '<br><span style="font-size:10.5px;color:#555">' + esc(sub) + "</span>" : "") + '</td><td class="num">' + (neg ? "− " : "") + esc(money(Math.abs(amt))) + "</td></tr>"; }
     if (Math.abs(b.arrears) > 0.004) rows += row(b.arrears > 0 ? "Previous dues (arrears)" : "Advance credit brought forward", b.arrears, b.arrears < 0);
-    b.cur.forEach(function (c) { rows += row((c.title || "Maintenance") + " – " + monthLabel(month), c.amount); });
+    b.cur.forEach(function (c) { rows += row((c.title || "Maintenance") + " – " + monthLabel(month), c.amount, false, c.detail); });
     if (b.paid > 0) rows += row("Payments received in " + monthLabel(month), b.paid, true);
     var totalRow = b.total > 0.004
       ? '<tr class="tot"><td>TOTAL PAYABLE</td><td class="num">' + esc(money(b.total)) + "</td></tr>"
@@ -599,6 +752,14 @@
   var acts = {
     tab: function (d) { tab = d.id; render(); window.scrollTo(0, 0); },
     closeModal: closeModal,
+    waterForm: function () {
+      download("water-reader-" + S.waterMonth + ".html", readerFormHtml(S.waterMonth), "text/html");
+      alert("Reader form downloaded. Send this file to the meter reader (for example on WhatsApp) and ask him to open it in Chrome on his phone.");
+    },
+    waterSheet: function () { printHtml(waterSheetHtml(S.waterMonth)); },
+    saveReadings: function () { commitReadings("save"); },
+    saveAddReadings: function () { commitReadings("bill"); },
+    saveStartReadings: function () { commitReadings("start"); },
     removeQr: function () { delete db.settings.payQr; save(); render(); },
     checkUpdate: function () {
       setUpdMsg("Checking…");
@@ -712,7 +873,7 @@
 
   var forms = {
     member: function (fd) {
-      var data = { flat: fd.flat.trim(), name: fd.name.trim(), phone: (fd.phone || "").trim(), monthly: Number(fd.monthly) || 0, opening: Number(fd.opening) || 0 };
+      var data = { flat: fd.flat.trim(), name: fd.name.trim(), phone: (fd.phone || "").trim(), monthly: Number(fd.monthly) || 0, opening: Number(fd.opening) || 0, meterStart: Number(fd.meterStart) || 0, water: !fd.nowater };
       var dupe = db.members.some(function (m) { return m.id !== fd.id && m.flat.toLowerCase() === data.flat.toLowerCase(); });
       if (dupe && !confirm("Flat " + data.flat + " already exists. Add another member for the same flat?")) return;
       if (fd.id) {
@@ -742,7 +903,7 @@
     settings: function (fd) {
       db.settings.name = fd.name.trim() || "My Society"; db.settings.cur = fd.cur.trim() || "Rs";
       db.settings.maintenance = Number(fd.maintenance) || 0; db.settings.openingCash = Number(fd.openingCash) || 0;
-      db.settings.dueDay = Math.min(28, Math.max(1, Number(fd.dueDay) || 10)); db.settings.billNote = (fd.billNote || "").trim();
+      db.settings.dueDay = Math.min(28, Math.max(1, Number(fd.dueDay) || 10)); db.settings.waterRate = (fd.waterRate === "" || fd.waterRate == null) ? 25 : (Number(fd.waterRate) || 0); db.settings.billNote = (fd.billNote || "").trim();
       save(); render(); alert("Settings saved.");
     },
     pin: function (fd) {
@@ -767,7 +928,20 @@
     forms[f.dataset.form](fd, f);
   });
   document.addEventListener("input", function (e) {
-    if (e.target.dataset && e.target.dataset.search) { S.q = e.target.value; var t = $("#tbl"); if (t) t.innerHTML = membersTable(); }
+    var tg = e.target, ds = tg.dataset || {};
+    if (ds.search) { S.q = tg.value; var t = $("#tbl"); if (t) t.innerHTML = membersTable(); }
+    if (ds.wr || ds.wp) {
+      var wid = ds.wr || ds.wp, dr = S.wdraft[wid] || (S.wdraft[wid] = {});
+      if (ds.wr) dr.cur = tg.value; else dr.prev = tg.value;
+      try {
+        var c = waterCalc(wid), tr = tg.closest("tr");
+        if (tr) {
+          var u = tr.querySelector(".wu"), a = tr.querySelector(".wa");
+          if (u) { u.textContent = !c.has ? "" : c.ok ? c.units : "Check"; u.className = "num wu " + (c.has && !c.ok ? "pos" : ""); }
+          if (a) a.textContent = c.ok ? money(c.amount) : "";
+        }
+      } catch (err) {}
+    }
   });
   document.addEventListener("change", function (e) {
     var el = e.target;
@@ -776,6 +950,24 @@
       var opt = el.options[el.selectedIndex];
       var due = opt ? Number(opt.dataset.due) : 0;
       if (due > 0) $("#payAmount").value = due;
+    }
+    if (el.id === "waterFile" && el.files && el.files[0]) {
+      var rw = new FileReader();
+      rw.onload = function () {
+        try {
+          var d = JSON.parse(rw.result);
+          if (!d || d.type !== "water-readings" || !/^\d{4}-\d{2}$/.test(d.month) || !Array.isArray(d.readings)) throw new Error("bad");
+          S.waterMonth = d.month; S.wdraft = {}; S.wdraftMonth = d.month;
+          var n = 0, miss = 0;
+          d.readings.forEach(function (x) {
+            if (memberById(x.id) && isFinite(x.reading)) { S.wdraft[x.id] = { cur: String(x.reading) }; n++; } else miss++;
+          });
+          tab = "water"; render();
+          alert(n + " reading(s) loaded for " + monthLabel(d.month) + ". Check the list, then press “Save & add to bills”." + (miss ? "\n" + miss + " row(s) skipped (house not found)." : ""));
+        } catch (err) { alert("This is not a valid water readings file."); }
+      };
+      rw.readAsText(el.files[0]);
+      return;
     }
     if (el.id === "qrFile" && el.files && el.files[0]) {
       var rq = new FileReader();
